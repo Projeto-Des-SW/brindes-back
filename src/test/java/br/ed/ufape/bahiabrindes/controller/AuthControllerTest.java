@@ -3,6 +3,7 @@ package br.ed.ufape.bahiabrindes.controller;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
 import br.ed.ufape.bahiabrindes.service.AuthService;
+import br.ed.ufape.bahiabrindes.service.PasswordResetService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,8 @@ class AuthControllerTest {
 
     @MockBean
     private AuthService authService;
+    @MockBean
+    private PasswordResetService passwordResetService;
 
     private LoginRequest loginRequest;
     private LoginResponse loginResponse;

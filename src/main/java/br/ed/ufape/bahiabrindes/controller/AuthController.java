@@ -2,7 +2,10 @@ package br.ed.ufape.bahiabrindes.controller;
 
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
+import br.ed.ufape.bahiabrindes.dto.auth.ForgotPasswordRequest;
+import br.ed.ufape.bahiabrindes.dto.auth.ResetPasswordRequest;
 import br.ed.ufape.bahiabrindes.service.AuthService;
+import br.ed.ufape.bahiabrindes.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -20,10 +23,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
     @Autowired
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/login")
@@ -51,5 +56,27 @@ public class AuthController {
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Solicitar recuperação de senha", description = "Gera um token de 5 minutos e envia por email")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Solicitação processada"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos", content = @Content)
+    })
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Resetar senha", description = "Valida o token e define a nova senha")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Senha alterada"),
+        @ApiResponse(responseCode = "400", description = "Token inválido/expirado ou dados inválidos", content = @Content)
+    })
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request);
+        return ResponseEntity.ok().build();
     }
 }
