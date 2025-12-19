@@ -1,16 +1,19 @@
-FROM ubuntu:latest AS build
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 
-RUN apt-get update
-RUN apt-get install -y openjdk-17-jdk maven
+WORKDIR /app
+
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
 COPY . .
+RUN mvn clean package -DskipTests
 
-RUN mvn clean install
+FROM eclipse-temurin:17-jre-jammy
 
-FROM openjdk:17-jdk-slim
+WORKDIR /app
 
 EXPOSE 8080
 
-COPY --from=build /target/*.jar app.jar
+COPY --from=build /app/target/*.jar app.jar
 
-ENTRYPOINT [ "java", "-jar", "app.jar" ]
+ENTRYPOINT ["java", "-jar", "app.jar"]
