@@ -29,6 +29,7 @@ public class SecurityConfig {
             "http://localhost:3000",
             "http://localhost:8080",
             "http://brindes-front-deploy.vercel.app",
+            "https://brindes-front-deploy.vercel.app",
             "https://brindes-front.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
