@@ -35,12 +35,10 @@ public class PasswordResetService {
     public void requestReset(ForgotPasswordRequest request) {
         Optional<Funcionario> opt = funcionarioRepository.findByEmailAndAtivoTrue(request.getEmail());
         if (opt.isEmpty()) {
-            // Always return 200 to avoid user enumeration
             return;
         }
         Funcionario funcionario = opt.get();
 
-        // Invalidate previous tokens for this user
         tokenRepository.deleteByFuncionarioId(funcionario.getId());
 
         String tokenStr = UUID.randomUUID().toString();
@@ -61,10 +59,10 @@ public class PasswordResetService {
                 .orElseThrow(() -> new IllegalArgumentException("Token inválido"));
 
         if (token.isUsed()) {
-            throw new IllegalStateException("Token já utilizado");
+            throw new IllegalArgumentException("Token inválido");
         }
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token expirado");
+            throw new IllegalArgumentException("Token inválido");
         }
 
         Funcionario funcionario = token.getFuncionario();
@@ -75,10 +73,9 @@ public class PasswordResetService {
     }
 
     private void sendResetEmail(String email, String token) {
-        // Basic email; in production, consider templated HTML
         JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
         if (mailSender == null) {
-            return; // mail not configured; silently skip
+            return;
         }
         SimpleMailMessage message = new SimpleMailMessage();
         if (mailFrom != null && !mailFrom.isBlank()) {
@@ -90,7 +87,7 @@ public class PasswordResetService {
         try {
             mailSender.send(message);
         } catch (Exception ex) {
-            // Log and continue; resetting flow should not expose mail failures
+            System.err.println("Erro ao enviar email de recuperação de senha: " + ex.getMessage());
         }
     }
 }
