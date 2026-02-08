@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="025-add-status-and-prazo-entrega-to-fornecedores" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="fornecedores"/>
+                <not>
+                    <columnExists tableName="fornecedores" columnName="status"/>
+                </not>
+            </and>
+        </preConditions>
+        <addColumn tableName="fornecedores">
+            <column name="status" type="VARCHAR(20)" defaultValue="ATIVO">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prazo_entrega_dias" type="INTEGER"/>
+        </addColumn>
+        <createIndex indexName="idx_fornecedores_status" tableName="fornecedores">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="026-create-locais-estoque-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="locais_estoque"/>
+            </not>
+        </preConditions>
+        <createTable tableName="locais_estoque">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="descricao" type="TEXT"/>
+            <column name="ativo" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex indexName="idx_locais_estoque_ativo" tableName="locais_estoque">
+            <column name="ativo"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="027-add-categoria-and-fornecedor-principal-to-materias-primas" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="materias_primas"/>
+                <not>
+                    <columnExists tableName="materias_primas" columnName="categoria_id"/>
+                </not>
+            </and>
+        </preConditions>
+        <addColumn tableName="materias_primas">
+            <column name="categoria_id" type="BIGINT"/>
+            <column name="fornecedor_principal_id" type="BIGINT"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="materias_primas"
+                                 baseColumnNames="categoria_id"
+                                 constraintName="fk_materias_primas_categoria"
+                                 referencedTableName="categorias"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="materias_primas"
+                                 baseColumnNames="fornecedor_principal_id"
+                                 constraintName="fk_materias_primas_fornecedor_principal"
+                                 referencedTableName="fornecedores"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <createIndex indexName="idx_materias_primas_categoria_id" tableName="materias_primas">
+            <column name="categoria_id"/>
+        </createIndex>
+        <createIndex indexName="idx_materias_primas_fornecedor_principal_id" tableName="materias_primas">
+            <column name="fornecedor_principal_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="028-add-front-fields-to-movimentacoes-estoque" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="movimentacoes_estoque"/>
+                <not>
+                    <columnExists tableName="movimentacoes_estoque" columnName="data_movimentacao"/>
+                </not>
+            </and>
+        </preConditions>
+        <addColumn tableName="movimentacoes_estoque">
+            <column name="data_movimentacao" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="fornecedor_id" type="BIGINT"/>
+            <column name="local_destino_id" type="BIGINT"/>
+            <column name="valor_unitario" type="DECIMAL(19,2)"/>
+        </addColumn>
+        <addForeignKeyConstraint baseTableName="movimentacoes_estoque"
+                                 baseColumnNames="fornecedor_id"
+                                 constraintName="fk_movimentacoes_estoque_fornecedor"
+                                 referencedTableName="fornecedores"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <addForeignKeyConstraint baseTableName="movimentacoes_estoque"
+                                 baseColumnNames="local_destino_id"
+                                 constraintName="fk_movimentacoes_estoque_local_destino"
+                                 referencedTableName="locais_estoque"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+        <createIndex indexName="idx_movimentacoes_estoque_data_movimentacao" tableName="movimentacoes_estoque">
+            <column name="data_movimentacao"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="029-add-materia-prima-id-to-movimentacoes-estoque" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <tableExists tableName="movimentacoes_estoque"/>
+                <not>
+                    <columnExists tableName="movimentacoes_estoque" columnName="materia_prima_id"/>
+                </not>
+            </and>
+        </preConditions>
+        <addColumn tableName="movimentacoes_estoque">
+            <column name="materia_prima_id" type="BIGINT"/>
+        </addColumn>
+
+        <sql>
+            UPDATE movimentacoes_estoque
+            SET materia_prima_id = item_id
+            WHERE tipo_item = 'MATERIA_PRIMA'
+              AND materia_prima_id IS NULL;
+        </sql>
+
+        <addForeignKeyConstraint baseTableName="movimentacoes_estoque"
+                                 baseColumnNames="materia_prima_id"
+                                 constraintName="fk_movimentacoes_estoque_materia_prima"
+                                 referencedTableName="materias_primas"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_movimentacoes_estoque_materia_prima_id" tableName="movimentacoes_estoque">
+            <column name="materia_prima_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="030-h2-fix-locais-estoque-descricao-type" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <dbms type="h2"/>
+                <tableExists tableName="locais_estoque"/>
+                <columnExists tableName="locais_estoque" columnName="descricao"/>
+            </and>
+        </preConditions>
+        <modifyDataType tableName="locais_estoque" columnName="descricao" newDataType="VARCHAR(2000)"/>
+    </changeSet>
+
+    <changeSet id="031-h2-fix-movimentacoes-estoque-motivo-type" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <dbms type="h2"/>
+                <tableExists tableName="movimentacoes_estoque"/>
+                <columnExists tableName="movimentacoes_estoque" columnName="motivo"/>
+            </and>
+        </preConditions>
+        <modifyDataType tableName="movimentacoes_estoque" columnName="motivo" newDataType="VARCHAR(4000)"/>
+    </changeSet>
+
+    <changeSet id="032-postgres-fix-locais-estoque-descricao-bytea" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <dbms type="postgresql"/>
+                <tableExists tableName="locais_estoque"/>
+                <columnExists tableName="locais_estoque" columnName="descricao"/>
+                <sqlCheck expectedResult="1">
+                    SELECT CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = current_schema()
+                          AND table_name = 'locais_estoque'
+                          AND column_name = 'descricao'
+                          AND udt_name = 'bytea'
+                    ) THEN 1 ELSE 0 END
+                </sqlCheck>
+            </and>
+        </preConditions>
+
+        <sql>
+            ALTER TABLE locais_estoque
+            ALTER COLUMN descricao
+            TYPE TEXT
+            USING CASE
+                    WHEN descricao IS NULL THEN NULL
+                    ELSE convert_from(descricao, 'UTF8')
+                 END;
+        </sql>
+    </changeSet>
+
+
+    <changeSet id="033-postgres-force-fix-locais-estoque-descricao-bytea" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <dbms type="postgresql"/>
+                <tableExists tableName="locais_estoque"/>
+                <columnExists tableName="locais_estoque" columnName="descricao"/>
+            </and>
+        </preConditions>
+        <!-- Importante: splitStatements=false para não quebrar o DO $$ ... $$ em ';' -->
+        <sql splitStatements="false" stripComments="true">
+            DO $$
+            DECLARE
+                v_schema text;
+                v_type text;
+            BEGIN
+                SELECT n.nspname, t.typname
+                  INTO v_schema, v_type
+                  FROM pg_catalog.pg_attribute a
+                  JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+                  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                  JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+                 WHERE c.relname = 'locais_estoque'
+                   AND a.attname = 'descricao'
+                   AND a.attnum &gt; 0
+                   AND NOT a.attisdropped
+                 LIMIT 1;
+
+                IF v_schema IS NOT NULL AND v_type = 'bytea' THEN
+                    EXECUTE format(
+                        'ALTER TABLE %I.locais_estoque ALTER COLUMN descricao TYPE TEXT USING CASE WHEN descricao IS NULL THEN NULL ELSE convert_from(descricao, ''UTF8'') END',
+                        v_schema
+                    );
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <!--
+      Fix para o caso de a coluna "nome" ter sido criada/migrada incorretamente como BYTEA.
+      Necessário pois a busca usa LOWER(l.nome) e Postgres não tem lower(bytea).
+      Idempotente: só altera se o tipo real for bytea.
+    -->
+    <changeSet id="034-postgres-force-fix-locais-estoque-nome-bytea" author="system">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <dbms type="postgresql"/>
+                <tableExists tableName="locais_estoque"/>
+                <columnExists tableName="locais_estoque" columnName="nome"/>
+            </and>
+        </preConditions>
+        <sql splitStatements="false" stripComments="true">
+            DO $$
+            DECLARE
+                v_schema text;
+                v_type text;
+            BEGIN
+                SELECT n.nspname, t.typname
+                  INTO v_schema, v_type
+                  FROM pg_catalog.pg_attribute a
+                  JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+                  JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+                  JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+                 WHERE c.relname = 'locais_estoque'
+                   AND a.attname = 'nome'
+                   AND a.attnum &gt; 0
+                   AND NOT a.attisdropped
+                 LIMIT 1;
+
+                IF v_schema IS NOT NULL AND v_type = 'bytea' THEN
+                    EXECUTE format(
+                        'ALTER TABLE %I.locais_estoque ALTER COLUMN nome TYPE TEXT USING CASE WHEN nome IS NULL THEN NULL ELSE convert_from(nome, ''UTF8'') END',
+                        v_schema
+                    );
+                END IF;
+            END $$;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
+

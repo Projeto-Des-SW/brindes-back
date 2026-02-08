@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="018-create-pedidos-compra-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="pedidos_compra"/>
+            </not>
+        </preConditions>
+        <createTable tableName="pedidos_compra">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="fornecedor_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valor_total" type="DECIMAL(19,2)"/>
+            <column name="data_pedido" type="DATE"/>
+            <column name="data_prevista_entrega" type="DATE"/>
+            <column name="url_nota_fiscal" type="VARCHAR(500)"/>
+            <column name="criado_por" type="BIGINT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="pedidos_compra"
+                                 baseColumnNames="fornecedor_id"
+                                 constraintName="fk_pedidos_compra_fornecedor"
+                                 referencedTableName="fornecedores"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="pedidos_compra"
+                                 baseColumnNames="criado_por"
+                                 constraintName="fk_pedidos_compra_criado_por"
+                                 referencedTableName="funcionarios"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_pedidos_compra_fornecedor_id" tableName="pedidos_compra">
+            <column name="fornecedor_id"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_compra_status" tableName="pedidos_compra">
+            <column name="status"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_compra_criado_por" tableName="pedidos_compra">
+            <column name="criado_por"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="019-create-itens-compra-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="itens_compra"/>
+            </not>
+        </preConditions>
+        <createTable tableName="itens_compra">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="pedido_compra_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="materia_prima_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantidade" type="DECIMAL(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="preco_unitario" type="DECIMAL(19,2)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="itens_compra"
+                                 baseColumnNames="pedido_compra_id"
+                                 constraintName="fk_itens_compra_pedido_compra"
+                                 referencedTableName="pedidos_compra"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="itens_compra"
+                                 baseColumnNames="materia_prima_id"
+                                 constraintName="fk_itens_compra_materia_prima"
+                                 referencedTableName="materias_primas"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex indexName="idx_itens_compra_pedido_compra_id" tableName="itens_compra">
+            <column name="pedido_compra_id"/>
+        </createIndex>
+        <createIndex indexName="idx_itens_compra_materia_prima_id" tableName="itens_compra">
+            <column name="materia_prima_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="024-create-arquivos-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="arquivos"/>
+            </not>
+        </preConditions>
+        <createTable tableName="arquivos">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tipo_entidade" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="id_entidade" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="url_arquivo" type="VARCHAR(800)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_arquivo" type="VARCHAR(100)"/>
+            <column name="tags" type="VARCHAR(500)"/>
+            <column name="enviado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Polimórfico: (tipo_entidade, id_entidade) aponta pra várias tabelas, então não tem FK. -->
+        <createIndex indexName="idx_arquivos_entidade" tableName="arquivos">
+            <column name="tipo_entidade"/>
+            <column name="id_entidade"/>
+        </createIndex>
+        <createIndex indexName="idx_arquivos_tipo_arquivo" tableName="arquivos">
+            <column name="tipo_arquivo"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+

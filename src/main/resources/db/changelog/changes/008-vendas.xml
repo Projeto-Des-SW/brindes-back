@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="020-create-orcamentos-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="orcamentos"/>
+            </not>
+        </preConditions>
+        <createTable tableName="orcamentos">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="cliente_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="valor_total" type="DECIMAL(19,2)"/>
+            <column name="data_validade" type="DATE"/>
+            <column name="url_pdf" type="VARCHAR(500)"/>
+            <column name="criado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="orcamentos"
+                                 baseColumnNames="cliente_id"
+                                 constraintName="fk_orcamentos_cliente"
+                                 referencedTableName="clientes"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex indexName="idx_orcamentos_cliente_id" tableName="orcamentos">
+            <column name="cliente_id"/>
+        </createIndex>
+        <createIndex indexName="idx_orcamentos_status" tableName="orcamentos">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="021-create-itens-orcamento-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="itens_orcamento"/>
+            </not>
+        </preConditions>
+        <createTable tableName="itens_orcamento">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="orcamento_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="variacao_produto_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantidade" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="preco_unitario" type="DECIMAL(19,2)"/>
+            <column name="notas_personalizacao" type="TEXT"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="itens_orcamento"
+                                 baseColumnNames="orcamento_id"
+                                 constraintName="fk_itens_orcamento_orcamento"
+                                 referencedTableName="orcamentos"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="itens_orcamento"
+                                 baseColumnNames="variacao_produto_id"
+                                 constraintName="fk_itens_orcamento_variacao_produto"
+                                 referencedTableName="variacoes_produto"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex indexName="idx_itens_orcamento_orcamento_id" tableName="itens_orcamento">
+            <column name="orcamento_id"/>
+        </createIndex>
+        <createIndex indexName="idx_itens_orcamento_variacao_produto_id" tableName="itens_orcamento">
+            <column name="variacao_produto_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="022-create-pedidos-venda-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="pedidos_venda"/>
+            </not>
+        </preConditions>
+        <createTable tableName="pedidos_venda">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="codigo" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cliente_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="origem" type="VARCHAR(50)"/>
+            <column name="status" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metodo_pagamento" type="VARCHAR(50)"/>
+            <column name="status_pagamento" type="VARCHAR(50)"/>
+            <column name="valor_total" type="DECIMAL(19,2)"/>
+            <column name="orcamento_id" type="BIGINT"/>
+            <column name="codigo_rastreio" type="VARCHAR(150)"/>
+            <column name="criado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="pedidos_venda"
+                                 baseColumnNames="cliente_id"
+                                 constraintName="fk_pedidos_venda_cliente"
+                                 referencedTableName="clientes"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <addForeignKeyConstraint baseTableName="pedidos_venda"
+                                 baseColumnNames="orcamento_id"
+                                 constraintName="fk_pedidos_venda_orcamento"
+                                 referencedTableName="orcamentos"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_pedidos_venda_codigo" tableName="pedidos_venda">
+            <column name="codigo"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_venda_cliente_id" tableName="pedidos_venda">
+            <column name="cliente_id"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_venda_orcamento_id" tableName="pedidos_venda">
+            <column name="orcamento_id"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_venda_status" tableName="pedidos_venda">
+            <column name="status"/>
+        </createIndex>
+        <createIndex indexName="idx_pedidos_venda_status_pagamento" tableName="pedidos_venda">
+            <column name="status_pagamento"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="023-create-itens-venda-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="itens_venda"/>
+            </not>
+        </preConditions>
+        <createTable tableName="itens_venda">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="pedido_venda_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="variacao_produto_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantidade" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="preco_unitario" type="DECIMAL(19,2)"/>
+            <column name="detalhes_personalizacao" type="TEXT"/>
+            <column name="url_arquivo_arte" type="VARCHAR(500)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="itens_venda"
+                                 baseColumnNames="pedido_venda_id"
+                                 constraintName="fk_itens_venda_pedido_venda"
+                                 referencedTableName="pedidos_venda"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="itens_venda"
+                                 baseColumnNames="variacao_produto_id"
+                                 constraintName="fk_itens_venda_variacao_produto"
+                                 referencedTableName="variacoes_produto"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+
+        <createIndex indexName="idx_itens_venda_pedido_venda_id" tableName="itens_venda">
+            <column name="pedido_venda_id"/>
+        </createIndex>
+        <createIndex indexName="idx_itens_venda_variacao_produto_id" tableName="itens_venda">
+            <column name="variacao_produto_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+
