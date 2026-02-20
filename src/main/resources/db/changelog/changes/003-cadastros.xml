@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="007-create-clientes-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="clientes"/>
+            </not>
+        </preConditions>
+        <createTable tableName="clientes">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="documento" type="VARCHAR(50)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="telefone" type="VARCHAR(50)"/>
+            <column name="endereco" type="TEXT"/>
+            <column name="segmentacao" type="VARCHAR(100)"/>
+            <column name="criado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_clientes_documento" tableName="clientes">
+            <column name="documento"/>
+        </createIndex>
+        <createIndex indexName="idx_clientes_email" tableName="clientes">
+            <column name="email"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="008-create-fornecedores-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="fornecedores"/>
+            </not>
+        </preConditions>
+        <createTable tableName="fornecedores">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="razao_social" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nome_fantasia" type="VARCHAR(255)"/>
+            <column name="cnpj" type="VARCHAR(30)"/>
+            <column name="email_contato" type="VARCHAR(255)"/>
+            <column name="telefone_contato" type="VARCHAR(50)"/>
+        </createTable>
+
+        <createIndex indexName="idx_fornecedores_cnpj" tableName="fornecedores">
+            <column name="cnpj"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="009-create-categorias-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="categorias"/>
+            </not>
+        </preConditions>
+        <createTable tableName="categorias">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ativa" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_categorias_ativa" tableName="categorias">
+            <column name="ativa"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- MER original tinha "perfis.permissoes (json)". Aqui usamos TEXT por compatibilidade com H2 (testes). -->
+    <changeSet id="010-add-permissoes-column-to-perfil" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="perfil" columnName="permissoes"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="perfil">
+            <column name="permissoes" type="TEXT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>
+

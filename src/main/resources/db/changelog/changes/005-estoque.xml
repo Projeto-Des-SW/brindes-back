@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="013-create-materias-primas-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="materias_primas"/>
+            </not>
+        </preConditions>
+        <createTable tableName="materias_primas">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sku" type="VARCHAR(100)"/>
+            <column name="unidade" type="VARCHAR(50)"/>
+            <column name="estoque_minimo" type="DECIMAL(19,4)"/>
+            <column name="atualizado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_materias_primas_sku" tableName="materias_primas">
+            <column name="sku"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="014-create-materias-primas-estoque-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="materias_primas_estoque"/>
+            </not>
+        </preConditions>
+        <createTable tableName="materias_primas_estoque">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="fornecedor_id" type="BIGINT"/>
+            <column name="materias_primas_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="preco_custo" type="DECIMAL(19,2)"/>
+            <column name="estoque_atual" type="DECIMAL(19,4)" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="materias_primas_estoque"
+                                 baseColumnNames="fornecedor_id"
+                                 constraintName="fk_materias_primas_estoque_fornecedor"
+                                 referencedTableName="fornecedores"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <addForeignKeyConstraint baseTableName="materias_primas_estoque"
+                                 baseColumnNames="materias_primas_id"
+                                 constraintName="fk_materias_primas_estoque_materia_prima"
+                                 referencedTableName="materias_primas"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex indexName="idx_materias_primas_estoque_fornecedor_id" tableName="materias_primas_estoque">
+            <column name="fornecedor_id"/>
+        </createIndex>
+        <createIndex indexName="idx_materias_primas_estoque_materias_primas_id" tableName="materias_primas_estoque">
+            <column name="materias_primas_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="015-create-movimentacoes-estoque-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="movimentacoes_estoque"/>
+            </not>
+        </preConditions>
+        <createTable tableName="movimentacoes_estoque">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tipo" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tipo_item" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="item_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantidade" type="DECIMAL(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="motivo" type="TEXT"/>
+            <column name="usuario_id" type="BIGINT"/>
+            <column name="criado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="movimentacoes_estoque"
+                                 baseColumnNames="usuario_id"
+                                 constraintName="fk_movimentacoes_estoque_usuario"
+                                 referencedTableName="funcionarios"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_movimentacoes_estoque_usuario_id" tableName="movimentacoes_estoque">
+            <column name="usuario_id"/>
+        </createIndex>
+        <createIndex indexName="idx_movimentacoes_estoque_item" tableName="movimentacoes_estoque">
+            <column name="tipo_item"/>
+            <column name="item_id"/>
+        </createIndex>
+        <createIndex indexName="idx_movimentacoes_estoque_tipo" tableName="movimentacoes_estoque">
+            <column name="tipo"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+

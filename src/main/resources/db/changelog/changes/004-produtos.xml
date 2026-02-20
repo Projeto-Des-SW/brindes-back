@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="011-create-produtos-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="produtos"/>
+            </not>
+        </preConditions>
+        <createTable tableName="produtos">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="descricao" type="TEXT"/>
+            <column name="categoria_id" type="BIGINT"/>
+            <column name="preco_base" type="DECIMAL(19,2)"/>
+            <column name="preco_custo_estimado" type="DECIMAL(19,2)"/>
+            <column name="sku_base" type="VARCHAR(100)"/>
+            <column name="publico" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="criado_em" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="produtos"
+                                 baseColumnNames="categoria_id"
+                                 constraintName="fk_produtos_categoria"
+                                 referencedTableName="categorias"
+                                 referencedColumnNames="id"
+                                 onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_produtos_categoria_id" tableName="produtos">
+            <column name="categoria_id"/>
+        </createIndex>
+        <createIndex indexName="idx_produtos_publico" tableName="produtos">
+            <column name="publico"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="012-create-variacoes-produto-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="variacoes_produto"/>
+            </not>
+        </preConditions>
+        <createTable tableName="variacoes_produto">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="produto_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sku" type="VARCHAR(100)"/>
+            <column name="ajuste_preco" type="DECIMAL(19,2)"/>
+            <column name="quantidade_estoque" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="variacoes_produto"
+                                 baseColumnNames="produto_id"
+                                 constraintName="fk_variacoes_produto_produto"
+                                 referencedTableName="produtos"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex indexName="idx_variacoes_produto_produto_id" tableName="variacoes_produto">
+            <column name="produto_id"/>
+        </createIndex>
+        <createIndex indexName="idx_variacoes_produto_sku" tableName="variacoes_produto">
+            <column name="sku"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+

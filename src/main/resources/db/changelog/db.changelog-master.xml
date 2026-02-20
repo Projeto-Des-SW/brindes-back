@@ -8,5 +8,14 @@
     <!-- Include all changelogs -->
     <include file="classpath:db/changelog/changes/001-initial-schema.xml"/>
     <include file="classpath:db/changelog/changes/002-password-reset-token.xml"/>
+    <include file="classpath:db/changelog/changes/003-cadastros.xml"/>
+    <include file="classpath:db/changelog/changes/004-produtos.xml"/>
+    <include file="classpath:db/changelog/changes/005-estoque.xml"/>
+    <include file="classpath:db/changelog/changes/006-maquinas.xml"/>
+    <include file="classpath:db/changelog/changes/007-compras.xml"/>
+    <include file="classpath:db/changelog/changes/008-vendas.xml"/>
+    <include file="classpath:db/changelog/changes/009-arquivos.xml"/>
+    <include file="classpath:db/changelog/changes/010-estoque-front-contratos-ajustes.xml"/>
+    <include file="classpath:db/changelog/changes/011-enderecos-e-fornecedores.xml"/>
 
 </databaseChangeLog>

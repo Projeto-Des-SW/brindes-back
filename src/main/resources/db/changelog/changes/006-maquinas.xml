@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="016-create-maquinas-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="maquinas"/>
+            </not>
+        </preConditions>
+        <createTable tableName="maquinas">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="nome" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="data_compra" type="DATE"/>
+            <column name="status" type="VARCHAR(50)"/>
+            <column name="ultima_manutencao" type="DATE"/>
+            <column name="proxima_manutencao_alerta" type="DATE"/>
+        </createTable>
+
+        <createIndex indexName="idx_maquinas_status" tableName="maquinas">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="017-create-manutencoes-maquina-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="manutencoes_maquina"/>
+            </not>
+        </preConditions>
+        <createTable tableName="manutencoes_maquina">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="maquina_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="data" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="descricao" type="TEXT"/>
+            <column name="custo" type="DECIMAL(19,2)"/>
+            <column name="nome_tecnico" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="manutencoes_maquina"
+                                 baseColumnNames="maquina_id"
+                                 constraintName="fk_manutencoes_maquina_maquina"
+                                 referencedTableName="maquinas"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <createIndex indexName="idx_manutencoes_maquina_maquina_id" tableName="manutencoes_maquina">
+            <column name="maquina_id"/>
+        </createIndex>
+        <createIndex indexName="idx_manutencoes_maquina_data" tableName="manutencoes_maquina">
+            <column name="data"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+
