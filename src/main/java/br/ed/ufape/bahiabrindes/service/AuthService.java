@@ -2,7 +2,9 @@ package br.ed.ufape.bahiabrindes.service;
 
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
+import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.model.entity.Funcionario;
+import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import br.ed.ufape.bahiabrindes.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,48 +14,73 @@ import org.springframework.stereotype.Service;
 
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.HashSet;
 
 @Service
 public class AuthService {
 
     private final FuncionarioRepository funcionarioRepository;
+    private final ClienteRepository clienteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
     @Autowired
-    public AuthService(FuncionarioRepository funcionarioRepository, 
-                      PasswordEncoder passwordEncoder,
-                      JwtUtil jwtUtil) {
+    public AuthService(FuncionarioRepository funcionarioRepository,
+                       ClienteRepository clienteRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtUtil jwtUtil) {
         this.funcionarioRepository = funcionarioRepository;
+        this.clienteRepository = clienteRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
     public LoginResponse login(LoginRequest request) {
         Funcionario funcionario = funcionarioRepository.findByEmailAndAtivoTrue(request.getEmail())
+                .orElse(null);
+
+        if (funcionario != null && passwordEncoder.matches(request.getSenha(), funcionario.getSenha())) {
+            Set<String> perfis = funcionario.getPerfis().stream()
+                    .map(perfil -> perfil.getNome())
+                    .collect(Collectors.toSet());
+            String token = jwtUtil.generateToken(
+                    funcionario.getEmail(),
+                    funcionario.getId(),
+                    perfis
+            );
+            return LoginResponse.builder()
+                    .token(token)
+                    .tipo("Bearer")
+                    .id(funcionario.getId())
+                    .nome(funcionario.getNome())
+                    .email(funcionario.getEmail())
+                    .perfis(perfis)
+                    .build();
+        }
+
+        Cliente cliente = clienteRepository.findByEmailAndAtivoTrue(request.getEmail())
                 .orElseThrow(() -> new BadCredentialsException("Email ou senha inválidos"));
 
-        if (!passwordEncoder.matches(request.getSenha(), funcionario.getSenha())) {
+        if (!passwordEncoder.matches(request.getSenha(), cliente.getSenha())) {
             throw new BadCredentialsException("Email ou senha inválidos");
         }
 
-        Set<String> perfis = funcionario.getPerfis().stream()
-                .map(perfil -> perfil.getNome())
-                .collect(Collectors.toSet());
+        Set<String> perfisCliente = new HashSet<>();
+        perfisCliente.add("CLIENTE");
 
-        String token = jwtUtil.generateToken(
-                funcionario.getEmail(),
-                funcionario.getId(),
-                perfis
+        String tokenCliente = jwtUtil.generateToken(
+                cliente.getEmail(),
+                cliente.getId(),
+                perfisCliente
         );
 
         return LoginResponse.builder()
-                .token(token)
+                .token(tokenCliente)
                 .tipo("Bearer")
-                .id(funcionario.getId())
-                .nome(funcionario.getNome())
-                .email(funcionario.getEmail())
-                .perfis(perfis)
+                .id(cliente.getId())
+                .nome(cliente.getNome())
+                .email(cliente.getEmail())
+                .perfis(perfisCliente)
                 .build();
     }
 }
