@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="022-add-status-to-produtos" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="produtos" columnName="status"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="produtos">
+            <column name="status" type="VARCHAR(20)" defaultValue="ATIVO">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="023-add-campos-comerciais-produtos" author="system">
+        <addColumn tableName="produtos">
+            <column name="condicoes_pagamento" type="VARCHAR(255)"/>
+            <column name="prazo_producao" type="VARCHAR(100)"/>
+            <column name="observacoes" type="TEXT"/>
+        </addColumn>
+    </changeSet>
+
+</databaseChangeLog>

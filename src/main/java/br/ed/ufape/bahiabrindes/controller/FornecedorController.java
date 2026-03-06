@@ -22,10 +22,10 @@ public class FornecedorController {
 
     @GetMapping
     public ResponseEntity<PageResponse<FornecedorResponse>> listar(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize
     ) {
         return ResponseEntity.ok(fornecedorService.listar(search, status, page, pageSize));
     }

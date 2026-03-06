@@ -22,10 +22,10 @@ public class MateriaPrimaController {
 
     @GetMapping
     public ResponseEntity<PageResponse<MateriaPrimaResponse>> listar(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String categoria,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "categoria", required = false) String categoria,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize
     ) {
         return ResponseEntity.ok(materiaPrimaService.listar(search, categoria, page, pageSize));
     }

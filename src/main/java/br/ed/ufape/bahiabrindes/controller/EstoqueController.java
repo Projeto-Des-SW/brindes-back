@@ -27,22 +27,22 @@ public class EstoqueController {
 
     @GetMapping("/itens")
     public ResponseEntity<PageResponse<ProdutoEstoqueItemResponse>> itens(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize
     ) {
         return ResponseEntity.ok(estoqueService.itens(search, status, page, pageSize));
     }
 
     @GetMapping("/movimentacoes")
     public ResponseEntity<PageResponse<MovimentacaoResponse>> movimentacoes(
-            @RequestParam(required = false) String search,
-            @RequestParam(required = false) String tipo,
-            @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "tipo", required = false) String tipo,
+            @RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "to", required = false) String to,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize
     ) {
         return ResponseEntity.ok(estoqueService.movimentacoes(search, tipo, from, to, page, pageSize));
     }

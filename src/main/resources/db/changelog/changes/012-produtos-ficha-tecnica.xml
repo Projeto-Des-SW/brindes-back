@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="020-alter-produtos-ficha-tecnica" author="system">
+        <!-- Add missing columns to produtos -->
+        <addColumn tableName="produtos">
+            <column name="estoque_atual" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="estoque_minimo" type="INTEGER" defaultValueNumeric="0"/>
+        </addColumn>
+
+        <!-- Rename existing columns to match new domain model -->
+        <renameColumn tableName="produtos" oldColumnName="sku_base" newColumnName="sku" columnDataType="VARCHAR(100)"/>
+        <renameColumn tableName="produtos" oldColumnName="preco_base" newColumnName="preco_venda" columnDataType="DECIMAL(19,4)"/>
+        <renameColumn tableName="produtos" oldColumnName="preco_custo_estimado" newColumnName="custo_producao" columnDataType="DECIMAL(19,4)"/>
+        
+        <!-- Add unique constraint for sku -->
+        <addUniqueConstraint tableName="produtos" columnNames="sku" constraintName="uc_produtos_sku"/>
+        
+        <!-- Modify decimal precision to match domain side -->
+        <modifyDataType tableName="produtos" columnName="preco_venda" newDataType="DECIMAL(19,4)"/>
+        <modifyDataType tableName="produtos" columnName="custo_producao" newDataType="DECIMAL(19,4)"/>
+    </changeSet>
+
+    <changeSet id="021-create-materias-primas-produtos" author="system">
+        <createTable tableName="materias_primas_produtos">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="produto_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="materia_prima_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="quantidade_necessaria" type="DECIMAL(19,4)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="custo_calculado" type="DECIMAL(19,4)"/>
+        </createTable>
+
+        <addForeignKeyConstraint baseTableName="materias_primas_produtos"
+                                 baseColumnNames="produto_id"
+                                 constraintName="fk_matprimprod_produto"
+                                 referencedTableName="produtos"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="materias_primas_produtos"
+                                 baseColumnNames="materia_prima_id"
+                                 constraintName="fk_matprimprod_matprim"
+                                 referencedTableName="materias_primas"
+                                 referencedColumnNames="id"
+                                 onDelete="RESTRICT"/>
+                                 
+        <createIndex indexName="idx_matprimprod_produto" tableName="materias_primas_produtos">
+            <column name="produto_id"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_matprimprod_matprim" tableName="materias_primas_produtos">
+            <column name="materia_prima_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

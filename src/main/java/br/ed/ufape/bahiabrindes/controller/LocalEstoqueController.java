@@ -22,9 +22,9 @@ public class LocalEstoqueController {
 
     @GetMapping
     public ResponseEntity<PageResponse<LocalEstoqueResponse>> listar(
-            @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int pageSize
+            @RequestParam(name = "search", required = false) String search,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "pageSize", defaultValue = "20") int pageSize
     ) {
         return ResponseEntity.ok(localEstoqueService.listar(search, page, pageSize));
     }
