@@ -1,5 +1,6 @@
 package br.ed.ufape.bahiabrindes.security;
 
+import br.ed.ufape.bahiabrindes.model.enums.TipoUsuario;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -27,10 +28,11 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String generateToken(String email, Long userId, Set<String> perfis) {
+    public String generateToken(String email, Long userId, Set<String> perfis, TipoUsuario tipoUsuario) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("perfis", perfis);
+        claims.put("tipoUsuario", tipoUsuario.name());
         return createToken(claims, email);
     }
 
@@ -53,6 +55,11 @@ public class JwtUtil {
 
     public Long extractUserId(String token) {
         return extractClaim(token, claims -> claims.get("userId", Long.class));
+    }
+
+    public TipoUsuario extractTipoUsuario(String token) {
+        String tipoUsuario = extractClaim(token, claims -> claims.get("tipoUsuario", String.class));
+        return TipoUsuario.valueOf(tipoUsuario);
     }
 
     public Date extractExpiration(String token) {

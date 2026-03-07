@@ -4,6 +4,7 @@ import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
 import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.model.entity.Funcionario;
+import br.ed.ufape.bahiabrindes.model.enums.TipoUsuario;
 import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import br.ed.ufape.bahiabrindes.security.JwtUtil;
@@ -36,6 +37,8 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
+        validarEmailUnicoEntreTipos(request.getEmail());
+
         Funcionario funcionario = funcionarioRepository.findByEmailAndAtivoTrue(request.getEmail())
                 .orElse(null);
 
@@ -46,7 +49,8 @@ public class AuthService {
             String token = jwtUtil.generateToken(
                     funcionario.getEmail(),
                     funcionario.getId(),
-                    perfis
+                    perfis,
+                    TipoUsuario.FUNCIONARIO
             );
             return LoginResponse.builder()
                     .token(token)
@@ -54,6 +58,7 @@ public class AuthService {
                     .id(funcionario.getId())
                     .nome(funcionario.getNome())
                     .email(funcionario.getEmail())
+                    .tipoUsuario(TipoUsuario.FUNCIONARIO)
                     .perfis(perfis)
                     .build();
         }
@@ -71,7 +76,8 @@ public class AuthService {
         String tokenCliente = jwtUtil.generateToken(
                 cliente.getEmail(),
                 cliente.getId(),
-                perfisCliente
+                perfisCliente,
+                TipoUsuario.CLIENTE
         );
 
         return LoginResponse.builder()
@@ -80,7 +86,17 @@ public class AuthService {
                 .id(cliente.getId())
                 .nome(cliente.getNome())
                 .email(cliente.getEmail())
+                .tipoUsuario(TipoUsuario.CLIENTE)
                 .perfis(perfisCliente)
                 .build();
+    }
+
+    private void validarEmailUnicoEntreTipos(String email) {
+        boolean existeFuncionario = funcionarioRepository.findByEmail(email).isPresent();
+        boolean existeCliente = clienteRepository.findByEmail(email).isPresent();
+
+        if (existeFuncionario && existeCliente) {
+            throw new IllegalStateException("Email cadastrado para multiplos tipos de usuario");
+        }
     }
 }

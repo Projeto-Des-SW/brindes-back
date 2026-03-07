@@ -6,6 +6,7 @@ import br.ed.ufape.bahiabrindes.dto.clientes.ClienteUpdateRequest;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
+import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,11 +19,15 @@ import org.springframework.stereotype.Service;
 public class ClienteService {
 
     private final ClienteRepository clienteRepository;
+    private final FuncionarioRepository funcionarioRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
-    public ClienteService(ClienteRepository clienteRepository, PasswordEncoder passwordEncoder) {
+    public ClienteService(ClienteRepository clienteRepository,
+                          FuncionarioRepository funcionarioRepository,
+                          PasswordEncoder passwordEncoder) {
         this.clienteRepository = clienteRepository;
+        this.funcionarioRepository = funcionarioRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -53,9 +58,7 @@ public class ClienteService {
                 throw new IllegalArgumentException("Documento já cadastrado");
             }
         }
-        if (clienteRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+        validarEmailDisponivel(blankToNull(request.getEmail()), null);
 
         String cleanedCpf = request.getDocumento() != null ? request.getDocumento().replaceAll("[^0-9]", "") : null;
 
@@ -91,10 +94,7 @@ public class ClienteService {
         }
         if (request.getEmail() != null) {
             String email = request.getEmail().trim();
-            if (!email.equals(cliente.getEmail()) &&
-                    clienteRepository.findByEmail(email).isPresent()) {
-                throw new IllegalArgumentException("Email já cadastrado");
-            }
+            validarEmailDisponivel(email, cliente.getId());
             cliente.setEmail(email);
         }
         if (request.getNome() != null) {
@@ -118,6 +118,18 @@ public class ClienteService {
         return toResponse(clienteAtualizado);
     }
 
+    public ClienteResponse buscarPorEmail(String email) {
+        Cliente cliente = clienteRepository.findByEmailAndAtivoTrue(email)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado"));
+        return toResponse(cliente);
+    }
+
+    public ClienteResponse atualizarPorEmail(String email, ClienteUpdateRequest request) {
+        Cliente cliente = clienteRepository.findByEmailAndAtivoTrue(email)
+                .orElseThrow(() -> new IllegalArgumentException("Cliente não encontrado"));
+        return atualizar(cliente.getId(), request);
+    }
+
 
     public void remover(Long id) {
         if (!clienteRepository.existsById(id)) {
@@ -137,6 +149,22 @@ public class ClienteService {
                 .segmentacao(c.getSegmentacao())
                 .criadoEm(c.getCriadoEm())
                 .build();
+    }
+
+    private void validarEmailDisponivel(String email, Long clienteIdAtual) {
+        if (email == null) {
+            return;
+        }
+
+        clienteRepository.findByEmail(email)
+                .filter(cliente -> !cliente.getId().equals(clienteIdAtual))
+                .ifPresent(cliente -> {
+                    throw new IllegalArgumentException("Email já cadastrado");
+                });
+
+        if (funcionarioRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email já cadastrado");
+        }
     }
 
     private static String blankToNull(String s) {

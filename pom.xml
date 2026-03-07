@@ -50,12 +50,6 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-		<!-- Liquibase para Migrations -->
-		<dependency>
-			<groupId>org.liquibase</groupId>
-			<artifactId>liquibase-core</artifactId>
-		</dependency>
-
 		<!-- Spring para validações -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

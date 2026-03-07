@@ -8,6 +8,7 @@ import br.ed.ufape.bahiabrindes.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,6 +35,11 @@ public class ClienteController {
         return ResponseEntity.ok(clienteService.buscarPorId(id));
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<ClienteResponse> buscarMeuPerfil(Authentication authentication) {
+        return ResponseEntity.ok(clienteService.buscarPorEmail(authentication.getName()));
+    }
+
     @PostMapping
     public ResponseEntity<ClienteResponse> criar(@Valid @RequestBody ClienteRequest request) {
         return ResponseEntity.ok(clienteService.criar(request));
@@ -42,6 +48,13 @@ public class ClienteController {
     @PatchMapping("/{id}")
     public ResponseEntity<ClienteResponse> atualizar(@PathVariable Long id, @Valid @RequestBody ClienteUpdateRequest request) {
         return ResponseEntity.ok(clienteService.atualizar(id, request));
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<ClienteResponse> atualizarMeuPerfil(
+            Authentication authentication,
+            @Valid @RequestBody ClienteUpdateRequest request) {
+        return ResponseEntity.ok(clienteService.atualizarPorEmail(authentication.getName(), request));
     }
 
     @DeleteMapping("/{id}")

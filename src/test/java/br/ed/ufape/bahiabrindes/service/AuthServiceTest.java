@@ -2,8 +2,11 @@ package br.ed.ufape.bahiabrindes.service;
 
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
+import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.model.entity.Funcionario;
 import br.ed.ufape.bahiabrindes.model.entity.Perfil;
+import br.ed.ufape.bahiabrindes.model.enums.TipoUsuario;
+import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import br.ed.ufape.bahiabrindes.security.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +25,9 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,6 +35,9 @@ class AuthServiceTest {
 
     @Mock
     private FuncionarioRepository funcionarioRepository;
+
+    @Mock
+    private ClienteRepository clienteRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -41,6 +49,7 @@ class AuthServiceTest {
     private AuthService authService;
 
     private Funcionario funcionario;
+    private Cliente cliente;
     private LoginRequest loginRequest;
 
     @BeforeEach
@@ -60,6 +69,13 @@ class AuthServiceTest {
         funcionario.setAtivo(true);
         funcionario.setPerfis(perfis);
 
+        cliente = new Cliente();
+        cliente.setId(2L);
+        cliente.setNome("Cliente Teste");
+        cliente.setEmail("cliente@bahiabrindes.com");
+        cliente.setSenha("$2a$10$encoded_password");
+        cliente.setAtivo(true);
+
         loginRequest = new LoginRequest();
         loginRequest.setEmail("teste@bahiabrindes.com");
         loginRequest.setSenha("senha123");
@@ -69,11 +85,15 @@ class AuthServiceTest {
     @DisplayName("Deve realizar login com sucesso")
     void deveRealizarLoginComSucesso() {
         // Arrange
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.of(funcionario));
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
         when(funcionarioRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
                 .thenReturn(Optional.of(funcionario));
         when(passwordEncoder.matches(loginRequest.getSenha(), funcionario.getSenha()))
                 .thenReturn(true);
-        when(jwtUtil.generateToken(anyString(), any(), any()))
+        when(jwtUtil.generateToken(anyString(), any(), anySet(), eq(TipoUsuario.FUNCIONARIO)))
                 .thenReturn("token_jwt_mockado");
 
         // Act
@@ -86,14 +106,49 @@ class AuthServiceTest {
         assertEquals(funcionario.getId(), response.getId());
         assertEquals(funcionario.getNome(), response.getNome());
         assertEquals(funcionario.getEmail(), response.getEmail());
+        assertEquals(TipoUsuario.FUNCIONARIO, response.getTipoUsuario());
         assertTrue(response.getPerfis().contains("ADMIN"));
+    }
+
+    @Test
+    @DisplayName("Deve realizar login de cliente com sucesso")
+    void deveRealizarLoginDeClienteComSucesso() {
+        // Arrange
+        loginRequest.setEmail("cliente@bahiabrindes.com");
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.of(cliente));
+        when(funcionarioRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
+                .thenReturn(Optional.of(cliente));
+        when(passwordEncoder.matches(loginRequest.getSenha(), cliente.getSenha()))
+                .thenReturn(true);
+        when(jwtUtil.generateToken(anyString(), any(), anySet(), eq(TipoUsuario.CLIENTE)))
+                .thenReturn("token_cliente_mockado");
+
+        // Act
+        LoginResponse response = authService.login(loginRequest);
+
+        // Assert
+        assertNotNull(response);
+        assertEquals("token_cliente_mockado", response.getToken());
+        assertEquals(TipoUsuario.CLIENTE, response.getTipoUsuario());
+        assertTrue(response.getPerfis().contains("CLIENTE"));
     }
 
     @Test
     @DisplayName("Deve lançar exceção quando email não encontrado")
     void deveLancarExcecaoQuandoEmailNaoEncontrado() {
         // Arrange
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
         when(funcionarioRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
                 .thenReturn(Optional.empty());
 
         // Act & Assert
@@ -109,6 +164,10 @@ class AuthServiceTest {
     @DisplayName("Deve lançar exceção quando senha incorreta")
     void deveLancarExcecaoQuandoSenhaIncorreta() {
         // Arrange
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.of(funcionario));
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
         when(funcionarioRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
                 .thenReturn(Optional.of(funcionario));
         when(passwordEncoder.matches(loginRequest.getSenha(), funcionario.getSenha()))
@@ -128,7 +187,13 @@ class AuthServiceTest {
     void deveLancarExcecaoQuandoUsuarioInativo() {
         // Arrange
         loginRequest.setEmail("inativo@bahiabrindes.com");
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
         when(funcionarioRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
+                .thenReturn(Optional.empty());
+        when(clienteRepository.findByEmailAndAtivoTrue(loginRequest.getEmail()))
                 .thenReturn(Optional.empty());
 
         // Act & Assert
@@ -138,5 +203,23 @@ class AuthServiceTest {
         );
         
         assertEquals("Email ou senha inválidos", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("Deve bloquear login quando email existir para cliente e funcionario")
+    void deveBloquearLoginQuandoEmailExistirParaClienteEFuncionario() {
+        // Arrange
+        when(funcionarioRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.of(funcionario));
+        when(clienteRepository.findByEmail(loginRequest.getEmail()))
+                .thenReturn(Optional.of(cliente));
+
+        // Act & Assert
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> authService.login(loginRequest)
+        );
+
+        assertEquals("Email cadastrado para multiplos tipos de usuario", exception.getMessage());
     }
 }

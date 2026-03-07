@@ -3,9 +3,15 @@ package br.ed.ufape.bahiabrindes.controller;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
 import br.ed.ufape.bahiabrindes.dto.auth.ForgotPasswordRequest;
+import br.ed.ufape.bahiabrindes.dto.auth.RegisterRequest;
+import br.ed.ufape.bahiabrindes.dto.auth.RegisterTokenRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.ResetPasswordRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.ClienteRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.ClienteResponse;
 import br.ed.ufape.bahiabrindes.service.AuthService;
+import br.ed.ufape.bahiabrindes.service.ClienteService;
 import br.ed.ufape.bahiabrindes.service.PasswordResetService;
+import br.ed.ufape.bahiabrindes.service.RegistrationTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -23,12 +29,19 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final ClienteService clienteService;
     private final PasswordResetService passwordResetService;
+    private final RegistrationTokenService registrationTokenService;
 
     @Autowired
-    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
+    public AuthController(AuthService authService,
+                          ClienteService clienteService,
+                          PasswordResetService passwordResetService,
+                          RegistrationTokenService registrationTokenService) {
         this.authService = authService;
+        this.clienteService = clienteService;
         this.passwordResetService = passwordResetService;
+        this.registrationTokenService = registrationTokenService;
     }
 
     @PostMapping("/login")
@@ -58,6 +71,42 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/register/request-token")
+    @Operation(
+        summary = "Solicitar token de cadastro",
+        description = "Gera um token de 5 minutos e envia por email para confirmar o cadastro do cliente"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Solicitação processada"),
+        @ApiResponse(responseCode = "400", description = "Dados inválidos ou email já cadastrado", content = @Content)
+    })
+    public ResponseEntity<Void> requestRegisterToken(@Valid @RequestBody RegisterTokenRequest request) {
+        registrationTokenService.requestToken(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/register")
+    @Operation(
+        summary = "Cadastrar cliente",
+        description = "Cria uma nova conta de cliente após validar o token enviado por email"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Cliente cadastrado com sucesso",
+            content = @Content(schema = @Schema(implementation = ClienteResponse.class))
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Dados inválidos ou email/documento já cadastrado",
+            content = @Content
+        )
+    })
+    public ResponseEntity<ClienteResponse> register(@Valid @RequestBody RegisterRequest request) {
+        registrationTokenService.validateAndConsume(request.getEmail(), request.getToken());
+        return ResponseEntity.ok(clienteService.criar(toClienteRequest(request)));
+    }
+
     @PostMapping("/forgot-password")
     @Operation(summary = "Solicitar recuperação de senha", description = "Gera um token de 5 minutos e envia por email")
     @ApiResponses(value = {
@@ -78,5 +127,17 @@ public class AuthController {
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetService.resetPassword(request);
         return ResponseEntity.ok().build();
+    }
+
+    private ClienteRequest toClienteRequest(RegisterRequest request) {
+        return ClienteRequest.builder()
+                .nome(request.getNome())
+                .email(request.getEmail())
+                .senha(request.getSenha())
+                .documento(request.getDocumento())
+                .telefone(request.getTelefone())
+                .endereco(request.getEndereco())
+                .segmentacao(request.getSegmentacao())
+                .build();
     }
 }

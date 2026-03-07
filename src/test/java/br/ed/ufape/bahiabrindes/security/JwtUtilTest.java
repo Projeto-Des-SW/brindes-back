@@ -1,5 +1,6 @@
 package br.ed.ufape.bahiabrindes.security;
 
+import br.ed.ufape.bahiabrindes.model.enums.TipoUsuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class JwtUtilTest {
         perfis.add("ADMIN");
 
         // Act
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Assert
         assertNotNull(token);
@@ -50,7 +51,7 @@ class JwtUtilTest {
         Long userId = 1L;
         Set<String> perfis = new HashSet<>();
         perfis.add("ADMIN");
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Act
         String extractedEmail = jwtUtil.extractEmail(token);
@@ -67,7 +68,7 @@ class JwtUtilTest {
         Long userId = 1L;
         Set<String> perfis = new HashSet<>();
         perfis.add("ADMIN");
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Act
         Long extractedUserId = jwtUtil.extractUserId(token);
@@ -84,7 +85,7 @@ class JwtUtilTest {
         Long userId = 1L;
         Set<String> perfis = new HashSet<>();
         perfis.add("ADMIN");
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Act
         Boolean isValid = jwtUtil.validateToken(token, email);
@@ -101,7 +102,7 @@ class JwtUtilTest {
         Long userId = 1L;
         Set<String> perfis = new HashSet<>();
         perfis.add("ADMIN");
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Act
         Boolean isValid = jwtUtil.validateToken(token, "outro@bahiabrindes.com");
@@ -118,7 +119,7 @@ class JwtUtilTest {
         Long userId = 1L;
         Set<String> perfis = new HashSet<>();
         perfis.add("ADMIN");
-        String token = jwtUtil.generateToken(email, userId, perfis);
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.FUNCIONARIO);
 
         // Act
         Date expirationDate = jwtUtil.extractExpiration(token);
@@ -126,5 +127,19 @@ class JwtUtilTest {
         // Assert
         assertNotNull(expirationDate);
         assertTrue(expirationDate.after(new Date()));
+    }
+
+    @Test
+    @DisplayName("Deve extrair tipo de usuario do token")
+    void deveExtrairTipoDeUsuarioDoToken() {
+        String email = "cliente@bahiabrindes.com";
+        Long userId = 2L;
+        Set<String> perfis = new HashSet<>();
+        perfis.add("CLIENTE");
+        String token = jwtUtil.generateToken(email, userId, perfis, TipoUsuario.CLIENTE);
+
+        TipoUsuario tipoUsuario = jwtUtil.extractTipoUsuario(token);
+
+        assertEquals(TipoUsuario.CLIENTE, tipoUsuario);
     }
 }

@@ -59,10 +59,10 @@ public class PasswordResetService {
                 .orElseThrow(() -> new IllegalArgumentException("Token inválido"));
 
         if (token.isUsed()) {
-            throw new IllegalArgumentException("Token inválido");
+            throw new IllegalStateException("Token inválido");
         }
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Token inválido");
+            throw new IllegalStateException("Token inválido");
         }
 
         Funcionario funcionario = token.getFuncionario();

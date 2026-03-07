@@ -2,8 +2,15 @@ package br.ed.ufape.bahiabrindes.controller;
 
 import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.LoginResponse;
+import br.ed.ufape.bahiabrindes.dto.auth.RegisterRequest;
+import br.ed.ufape.bahiabrindes.dto.auth.RegisterTokenRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.ClienteRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.ClienteResponse;
+import br.ed.ufape.bahiabrindes.model.enums.TipoUsuario;
 import br.ed.ufape.bahiabrindes.service.AuthService;
+import br.ed.ufape.bahiabrindes.service.ClienteService;
 import br.ed.ufape.bahiabrindes.service.PasswordResetService;
+import br.ed.ufape.bahiabrindes.service.RegistrationTokenService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -37,10 +44,17 @@ class AuthControllerTest {
     @MockBean
     private AuthService authService;
     @MockBean
+    private ClienteService clienteService;
+    @MockBean
     private PasswordResetService passwordResetService;
+    @MockBean
+    private RegistrationTokenService registrationTokenService;
 
     private LoginRequest loginRequest;
     private LoginResponse loginResponse;
+    private RegisterRequest registerRequest;
+    private ClienteResponse clienteResponse;
+    private RegisterTokenRequest registerTokenRequest;
 
     @BeforeEach
     void setUp() {
@@ -57,7 +71,25 @@ class AuthControllerTest {
         loginResponse.setId(1L);
         loginResponse.setNome("Teste User");
         loginResponse.setEmail("teste@bahiabrindes.com");
+        loginResponse.setTipoUsuario(TipoUsuario.FUNCIONARIO);
         loginResponse.setPerfis(perfis);
+
+        registerRequest = new RegisterRequest();
+        registerRequest.setNome("Cliente Teste");
+        registerRequest.setEmail("cliente@bahiabrindes.com");
+        registerRequest.setSenha("senha123");
+        registerRequest.setToken("token-cadastro");
+        registerRequest.setDocumento("12345678901");
+        registerRequest.setTelefone("81999999999");
+
+        registerTokenRequest = new RegisterTokenRequest("cliente@bahiabrindes.com");
+
+        clienteResponse = new ClienteResponse();
+        clienteResponse.setId(2L);
+        clienteResponse.setNome("Cliente Teste");
+        clienteResponse.setEmail("cliente@bahiabrindes.com");
+        clienteResponse.setDocumento("12345678901");
+        clienteResponse.setTelefone("81999999999");
     }
 
     @Test
@@ -77,6 +109,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.nome").value("Teste User"))
                 .andExpect(jsonPath("$.email").value("teste@bahiabrindes.com"))
+                .andExpect(jsonPath("$.tipoUsuario").value("FUNCIONARIO"))
                 .andExpect(jsonPath("$.perfis[0]").value("ADMIN"));
     }
 
@@ -131,5 +164,40 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(loginRequest)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/register - Deve cadastrar cliente com sucesso")
+    void deveCadastrarClienteComSucesso() throws Exception {
+        when(clienteService.criar(any(ClienteRequest.class))).thenReturn(clienteResponse);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(2))
+                .andExpect(jsonPath("$.nome").value("Cliente Teste"))
+                .andExpect(jsonPath("$.email").value("cliente@bahiabrindes.com"));
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/register - Deve retornar 400 quando dados do cliente forem inválidos")
+    void deveRetornar400QuandoDadosDoClienteForemInvalidos() throws Exception {
+        registerRequest.setEmail("email-invalido");
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("POST /api/auth/register/request-token - Deve solicitar token de cadastro")
+    void deveSolicitarTokenDeCadastro() throws Exception {
+        mockMvc.perform(post("/api/auth/register/request-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(registerTokenRequest)))
+                .andExpect(status().isOk());
     }
 }
