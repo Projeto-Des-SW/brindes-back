@@ -117,11 +117,8 @@ public class EstoqueService {
     }
 
     public PageResponse<MovimentacaoResponse> movimentacoes(String search, String tipo, String from, String to, int page, int pageSize) {
-        LocalDateTime dataInicio = parseDateTimeOrNull(from);
-        LocalDateTime dataFim = parseDateTimeOrNull(to);
-
         Pageable pageable = PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by("dataMovimentacao").descending());
-        Page<MovimentacaoEstoque> result = movimentacaoEstoqueRepository.search(blankToNull(search), blankToNull(tipo), dataInicio, dataFim, pageable);
+        Page<MovimentacaoEstoque> result = movimentacaoEstoqueRepository.search(blankToNull(search), blankToNull(tipo), pageable);
 
         return PageResponse.<MovimentacaoResponse>builder()
                 .items(result.getContent().stream().map(this::toMovimentacaoResponse).toList())
@@ -182,25 +179,98 @@ public class EstoqueService {
 
         MovimentacaoEstoque saved = movimentacaoEstoqueRepository.save(mov);
 
-        // Atualiza estoque atual
-        MateriaPrimaEstoque estoque = resolveEstoque(materiaPrima.getId(), fornecedor != null ? fornecedor.getId() : null);
-        BigDecimal atual = nvl(estoque.getEstoqueAtual());
-        BigDecimal novo;
-        if ("Entrada".equals(tipo)) {
-            novo = atual.add(quantidade);
-        } else {
-            novo = atual.subtract(quantidade);
-            if (novo.compareTo(BigDecimal.ZERO) < 0) {
-                throw new IllegalStateException("Estoque insuficiente para saída");
-            }
-        }
-        estoque.setEstoqueAtual(novo);
-        if (valorUnitario != null) {
-            estoque.setPrecoCusto(valorUnitario);
-        }
-        materiaPrimaEstoqueRepository.save(estoque);
+        aplicarDeltaEstoque(
+                materiaPrima.getId(),
+                fornecedor != null ? fornecedor.getId() : null,
+                signedQuantidade(tipo, quantidade),
+                "Entrada".equals(tipo) ? valorUnitario : null
+        );
 
         return toMovimentacaoResponse(saved);
+    }
+
+    @Transactional
+    public MovimentacaoResponse atualizarMovimentacao(Long id, AtualizarMovimentacaoRequest request, String emailUsuario) {
+        MovimentacaoEstoque existente = movimentacaoEstoqueRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Movimentação não encontrada"));
+
+        String tipoNovo = normalizeTipo(request.getTipo());
+        if (!"Entrada".equals(tipoNovo) && !"Saída".equals(tipoNovo)) {
+            throw new IllegalArgumentException("Tipo inválido. Use 'Entrada' ou 'Saída'.");
+        }
+
+        BigDecimal quantidadeNova = nvl(request.getQuantidade());
+        if (quantidadeNova.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Quantidade deve ser maior que zero");
+        }
+
+        // Reverte efeito antigo no estoque
+        Long mpAntigaId = existente.getMateriaPrima() != null ? existente.getMateriaPrima().getId() : existente.getItemId();
+        Long fornecedorAntigoId = existente.getFornecedor() != null ? existente.getFornecedor().getId() : null;
+        BigDecimal quantidadeAntiga = nvl(existente.getQuantidade());
+        String tipoAntigo = normalizeTipo(existente.getTipo());
+        aplicarDeltaEstoque(mpAntigaId, fornecedorAntigoId, signedQuantidade(tipoAntigo, quantidadeAntiga).negate(), null);
+
+        // Resolve novas referências e atualiza entidade
+        MateriaPrima mpNova = materiaPrimaRepository.findById(request.getMateriaPrimaId())
+                .orElseThrow(() -> new IllegalArgumentException("Matéria-prima não encontrada"));
+
+        Fornecedor fornecedorNovo = null;
+        if (request.getFornecedorId() != null) {
+            fornecedorNovo = fornecedorRepository.findById(request.getFornecedorId())
+                    .orElseThrow(() -> new IllegalArgumentException("Fornecedor não encontrado"));
+        }
+
+        LocalEstoque destinoNovo = null;
+        if (request.getDestinoId() != null) {
+            destinoNovo = localEstoqueRepository.findById(request.getDestinoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Local de estoque (destino) não encontrado"));
+        }
+
+        Funcionario usuario = null;
+        if (emailUsuario != null) {
+            usuario = funcionarioRepository.findByEmailAndAtivoTrue(emailUsuario).orElse(null);
+        }
+
+        existente.setTipo(tipoNovo);
+        existente.setTipoItem("MATERIA_PRIMA");
+        existente.setItemId(mpNova.getId());
+        existente.setMateriaPrima(mpNova);
+        existente.setQuantidade(quantidadeNova);
+        existente.setMotivo(blankToNull(request.getMotivo()));
+        if (usuario != null) {
+            existente.setUsuario(usuario);
+        }
+        existente.setDataMovimentacao(parseDateTimeOrNow(request.getData()));
+        existente.setFornecedor(fornecedorNovo);
+        existente.setLocalDestino(destinoNovo);
+        existente.setValorUnitario(request.getValorUnitario());
+
+        MovimentacaoEstoque saved = movimentacaoEstoqueRepository.save(existente);
+
+        // Aplica novo efeito no estoque
+        aplicarDeltaEstoque(
+                mpNova.getId(),
+                fornecedorNovo != null ? fornecedorNovo.getId() : null,
+                signedQuantidade(tipoNovo, quantidadeNova),
+                "Entrada".equals(tipoNovo) ? request.getValorUnitario() : null
+        );
+
+        return toMovimentacaoResponse(saved);
+    }
+
+    @Transactional
+    public void excluirMovimentacao(Long id) {
+        MovimentacaoEstoque existente = movimentacaoEstoqueRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Movimentação não encontrada"));
+
+        Long mpId = existente.getMateriaPrima() != null ? existente.getMateriaPrima().getId() : existente.getItemId();
+        Long fornecedorId = existente.getFornecedor() != null ? existente.getFornecedor().getId() : null;
+        BigDecimal qtd = nvl(existente.getQuantidade());
+        String tipo = normalizeTipo(existente.getTipo());
+
+        aplicarDeltaEstoque(mpId, fornecedorId, signedQuantidade(tipo, qtd).negate(), null);
+        movimentacaoEstoqueRepository.delete(existente);
     }
 
     private MovimentacaoResponse toMovimentacaoResponse(MovimentacaoEstoque m) {
@@ -224,11 +294,16 @@ public class EstoqueService {
                 .id(m.getId())
                 .data(m.getDataMovimentacao() != null ? m.getDataMovimentacao().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) : null)
                 .tipo(m.getTipo())
+                .materiaPrimaId(m.getMateriaPrima() != null ? m.getMateriaPrima().getId() : m.getItemId())
                 .materiaPrima(materiaPrima)
                 .quantidade(nvl(m.getQuantidade()))
+                .fornecedorId(m.getFornecedor() != null ? m.getFornecedor().getId() : null)
                 .fornecedor(fornecedor)
                 .responsavel(responsavel)
+                .destinoId(m.getLocalDestino() != null ? m.getLocalDestino().getId() : null)
                 .destino(destino)
+                .valorUnitario(m.getValorUnitario())
+                .motivo(m.getMotivo())
                 .valorTotal(valorTotal)
                 .build();
     }
@@ -256,6 +331,34 @@ public class EstoqueService {
                             .estoqueAtual(BigDecimal.ZERO)
                             .build();
                 });
+    }
+
+    private void aplicarDeltaEstoque(Long materiaPrimaId, Long fornecedorId, BigDecimal delta, BigDecimal novoPrecoCustoSeEntrada) {
+        if (materiaPrimaId == null) {
+            throw new IllegalArgumentException("Matéria-prima inválida para ajuste de estoque");
+        }
+        BigDecimal d = nvl(delta);
+        if (d.compareTo(BigDecimal.ZERO) == 0) return;
+
+        MateriaPrimaEstoque estoque = resolveEstoque(materiaPrimaId, fornecedorId);
+        BigDecimal atual = nvl(estoque.getEstoqueAtual());
+        BigDecimal novo = atual.add(d);
+        if (novo.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalStateException("Estoque insuficiente para operação");
+        }
+        estoque.setEstoqueAtual(novo);
+        if (novoPrecoCustoSeEntrada != null) {
+            estoque.setPrecoCusto(novoPrecoCustoSeEntrada);
+        }
+        materiaPrimaEstoqueRepository.save(estoque);
+    }
+
+    private static BigDecimal signedQuantidade(String tipo, BigDecimal quantidade) {
+        BigDecimal q = nvl(quantidade);
+        String t = normalizeTipo(tipo);
+        if ("Entrada".equals(t)) return q;
+        if ("Saída".equals(t)) return q.negate();
+        throw new IllegalArgumentException("Tipo inválido. Use 'Entrada' ou 'Saída'.");
     }
 
     private static String normalizeTipo(String tipo) {

@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 
 public interface MovimentacaoEstoqueRepository extends JpaRepository<MovimentacaoEstoque, Long> {
 
@@ -19,22 +18,18 @@ public interface MovimentacaoEstoqueRepository extends JpaRepository<Movimentaca
       LEFT JOIN m.localDestino l
       WHERE m.materiaPrima IS NOT NULL
         AND (:tipo IS NULL OR m.tipo = :tipo)
-        AND (:from IS NULL OR m.dataMovimentacao >= :from)
-        AND (:to   IS NULL OR m.dataMovimentacao <= :to)
         AND (
             :search IS NULL
-          OR LOWER(m.materiaPrima.nome) LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
-          OR LOWER(f.razaoSocial)       LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
-          OR LOWER(f.nomeFantasia)      LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
-          OR LOWER(u.nome)              LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
-          OR LOWER(l.nome)              LIKE LOWER(CONCAT('%', CAST(:search as string), '%'))
+          OR LOWER(m.materiaPrima.nome) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+          OR LOWER(f.razaoSocial)       LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+          OR LOWER(f.nomeFantasia)      LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+          OR LOWER(u.nome)              LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+          OR LOWER(l.nome)              LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
         )
   """)
   Page<MovimentacaoEstoque> search(
           @Param("search") String search,
           @Param("tipo") String tipo,
-          @Param("from") LocalDateTime from,
-          @Param("to") LocalDateTime to,
           Pageable pageable
   );
 }

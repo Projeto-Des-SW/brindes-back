@@ -69,7 +69,7 @@ public class ProdutoService {
                 .precoVenda(request.getPrecoVenda())
                 .custoProducao(request.getCustoProducao())
                 .categoria(resolveCategoria(request.getCategoriaId()))
-                .estoqueAtual(0)
+                .estoqueAtual(request.getEstoqueAtual() != null ? request.getEstoqueAtual() : 0)
                 .estoqueMinimo(request.getEstoqueMinimo() != null ? request.getEstoqueMinimo() : 0)
                 .status(request.getStatus() != null ? request.getStatus() : "ATIVO")
                 .condicoesPagamento(request.getCondicoesPagamento())
@@ -96,6 +96,7 @@ public class ProdutoService {
         produto.setCustoProducao(request.getCustoProducao());
         produto.setCategoria(resolveCategoria(request.getCategoriaId()));
         produto.setEstoqueMinimo(request.getEstoqueMinimo() != null ? request.getEstoqueMinimo() : 0);
+        if (request.getEstoqueAtual() != null) produto.setEstoqueAtual(request.getEstoqueAtual());
         produto.setStatus(request.getStatus() != null ? request.getStatus() : produto.getStatus());
         produto.setCondicoesPagamento(request.getCondicoesPagamento());
         produto.setPrazoProducao(request.getPrazoProducao());
