@@ -1,5 +1,6 @@
 package br.ed.ufape.bahiabrindes.dto.auth;
 
+import br.ed.ufape.bahiabrindes.dto.clientes.EnderecoRequest;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -33,6 +34,6 @@ public class RegisterRequest {
     @Pattern(regexp = "\\d{10,11}", message = "Telefone deve conter entre 10 e 11 dígitos numéricos (sem espaços, pontos ou hífen)")
     private String telefone;
 
-    private String endereco;
+    private EnderecoRequest endereco;
     private String segmentacao;
 }

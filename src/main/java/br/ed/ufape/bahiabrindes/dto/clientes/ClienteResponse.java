@@ -17,7 +17,7 @@ public class ClienteResponse {
     private String documento;
     private String email;
     private String telefone;
-    private String endereco;
+    private EnderecoResponse endereco;
     private String segmentacao;
     private LocalDateTime criadoEm;
     private String fotoPerfil;

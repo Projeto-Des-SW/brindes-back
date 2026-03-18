@@ -4,6 +4,7 @@ import br.ed.ufape.bahiabrindes.dto.auth.LoginRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.RegisterRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.RegisterTokenRequest;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteUpdateRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.EnderecoRequest;
 import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.model.entity.Funcionario;
 import br.ed.ufape.bahiabrindes.model.entity.Perfil;
@@ -169,7 +170,13 @@ class AuthControllerIntegrationTest {
         request.setToken(token);
         request.setDocumento("98765432100");
         request.setTelefone("81988887777");
-        request.setEndereco("Rua das Flores, 123");
+        request.setEndereco(EnderecoRequest.builder()
+                .rua("Rua das Flores")
+                .numero("123")
+                .cep("50000000")
+                .cidade("Recife")
+                .estado("PE")
+                .build());
         request.setSegmentacao("Varejo");
 
         mockMvc.perform(post("/api/auth/register")

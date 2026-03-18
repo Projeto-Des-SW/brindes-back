@@ -55,5 +55,23 @@ public class EstoqueController {
         String email = authentication != null ? authentication.getName() : null;
         return ResponseEntity.ok(estoqueService.criarMovimentacao(request, email));
     }
+
+    @PutMapping("/movimentacoes/{id}")
+    public ResponseEntity<MovimentacaoResponse> atualizarMovimentacao(
+            @PathVariable("id") Long id,
+            @Valid @RequestBody AtualizarMovimentacaoRequest request,
+            Authentication authentication
+    ) {
+        String email = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(estoqueService.atualizarMovimentacao(id, request, email));
+    }
+
+    @DeleteMapping("/movimentacoes/{id}")
+    public ResponseEntity<Void> excluirMovimentacao(
+            @PathVariable("id") Long id
+    ) {
+        estoqueService.excluirMovimentacao(id);
+        return ResponseEntity.noContent().build();
+    }
 }
 
