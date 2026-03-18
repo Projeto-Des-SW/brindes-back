@@ -26,7 +26,7 @@ public class RegistrationTokenService {
     @Value("${app.mail.from:}")
     private String mailFrom;
 
-    private static final int EXP_MINUTES = 5;
+    private static final int EXP_MINUTES = 30;
     private final Map<String, RegistrationTokenData> tokensByEmail = new ConcurrentHashMap<>();
 
     public void requestToken(RegisterTokenRequest request) {
@@ -37,6 +37,17 @@ public class RegistrationTokenService {
         String token = UUID.randomUUID().toString();
         tokensByEmail.put(email, new RegistrationTokenData(token, LocalDateTime.now().plusMinutes(EXP_MINUTES)));
         sendRegisterEmail(email, token);
+    }
+
+    public void validate(String email, String token) {
+        limparExpirados();
+        RegistrationTokenData tokenData = tokensByEmail.get(normalize(email));
+        if (tokenData == null || tokenData.expiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Token inválido");
+        }
+        if (!tokenData.token().equals(token)) {
+            throw new IllegalStateException("Token inválido");
+        }
     }
 
     public void validateAndConsume(String email, String token) {
@@ -83,7 +94,7 @@ public class RegistrationTokenService {
         }
         message.setTo(email);
         message.setSubject("Confirmação de cadastro - Bahia Brindes");
-        message.setText("Use este token para concluir seu cadastro (5 min): " + token);
+        message.setText("Use este token para concluir seu cadastro (válido por 30 minutos): " + token);
 
         try {
             mailSender.send(message);
