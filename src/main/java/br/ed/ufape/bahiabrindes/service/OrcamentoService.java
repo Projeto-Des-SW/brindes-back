@@ -20,6 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+
 @Service
 public class OrcamentoService {
 
@@ -29,6 +35,11 @@ public class OrcamentoService {
     private final HistoricoStatusOrcamentoRepository historicoRepository;
     private final ArteOrcamentoRepository arteRepository;
     private final ComentarioOrcamentoRepository comentarioRepository;
+    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.mail.from:}")
+    private String mailFrom;
 
     // Formatador para exibição de datas
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -57,7 +68,9 @@ public class OrcamentoService {
             ClienteRepository clienteRepository,
             HistoricoStatusOrcamentoRepository historicoRepository,
             ArteOrcamentoRepository arteRepository,
-            ComentarioOrcamentoRepository comentarioRepository
+            ComentarioOrcamentoRepository comentarioRepository,
+            ObjectProvider<JavaMailSender> mailSenderProvider,
+            PasswordEncoder passwordEncoder
     ) {
         this.orcamentoRepository = orcamentoRepository;
         this.produtoRepository = produtoRepository;
@@ -65,6 +78,9 @@ public class OrcamentoService {
         this.historicoRepository = historicoRepository;
         this.arteRepository = arteRepository;
         this.comentarioRepository = comentarioRepository;
+        this.mailSenderProvider = mailSenderProvider;
+        this.passwordEncoder = passwordEncoder;
+
     }
 
     // ─────────────────────────── Listagem (admin) ────────────────────────────
@@ -209,6 +225,130 @@ public class OrcamentoService {
 
         return toDetalhe(salvo);
     }
+
+        @Transactional
+        public OrcamentoDetalheResponseDTO criarOrcamentoAdmin(CriarOrcamentoAdminRequest request, String emailFuncionario) { 
+                
+                if (request.getItens() == null || request.getItens().isEmpty()) {
+                    throw new IllegalArgumentException("Orçamento deve conter ao menos um item");
+                }
+
+                if (request.getEmailCliente() == null || request.getEmailCliente().isBlank()) {
+                    throw new IllegalArgumentException("O e-mail do cliente é obrigatório para registar a venda.");
+                }
+
+                // Procura o cliente pelo e-mail. Se não existir, cria na hora
+                Cliente cliente = clienteRepository.findByEmailAndAtivoTrue(request.getEmailCliente())
+                        .orElseGet(() -> {
+                            String senhaTemporaria = java.util.UUID.randomUUID().toString().substring(0, 8);
+
+                            Cliente novoCliente = Cliente.builder()
+                                    .nome(request.getNomeCliente() != null && !request.getNomeCliente().isBlank() 
+                                            ? request.getNomeCliente() 
+                                            : "Cliente não identificado")
+                                    .email(request.getEmailCliente())
+                                    .telefone(request.getTelefoneCliente())
+                                    .senha(passwordEncoder.encode(senhaTemporaria))
+                                    .ativo(true)
+                                    .build();
+                            
+                            Cliente clienteSalvo = clienteRepository.save(novoCliente);
+                        
+                            enviarEmailBoasVindas(clienteSalvo.getEmail(), clienteSalvo.getNome(), senhaTemporaria);
+                            
+                            return clienteSalvo;
+                        });
+
+                Orcamento orcamento = Orcamento.builder()
+                        .cliente(cliente)
+                        .status(StatusOrcamento.ORCAMENTO_SOLICITADO)
+                        .valorTotal(BigDecimal.ZERO)
+                        .observacoes(request.getObservacoes())
+                        .itens(new ArrayList<>())
+                        .historico(new ArrayList<>())
+                        .artes(new ArrayList<>())
+                        .build();
+
+                BigDecimal total = BigDecimal.ZERO;
+                List<OrcamentoItem> itens = new ArrayList<>();
+
+                for (CriarOrcamentoItemRequest itemReq : request.getItens()) {
+                    Produto produto = produtoRepository.findById(itemReq.getProdutoId())
+                            .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado: " + itemReq.getProdutoId()));
+
+                    int quantidade = itemReq.getQuantidade() != null ? itemReq.getQuantidade() : 0;
+                    if (quantidade <= 0) {
+                            throw new IllegalArgumentException("Quantidade inválida para o produto: " + produto.getNome());
+                    }
+
+                    BigDecimal precoUnitario = produto.getPrecoVenda() != null ? produto.getPrecoVenda() : BigDecimal.ZERO;
+                    BigDecimal precoTotal = precoUnitario.multiply(BigDecimal.valueOf(quantidade));
+                    total = total.add(precoTotal);
+
+                    String imagemUrl = null;
+                    if (produto.getImagens() != null && !produto.getImagens().isEmpty()) {
+                            imagemUrl = produto.getImagens().get(0).getUrl();
+                    }
+
+                    OrcamentoItem item = OrcamentoItem.builder()
+                            .orcamento(orcamento)
+                            .produto(produto)
+                            .quantidade(quantidade)
+                            .cor(itemReq.getCor())
+                            .variacao(itemReq.getImpressao())
+                            .precoUnitario(precoUnitario)
+                            .precoTotal(precoTotal)
+                            .imagemUrl(imagemUrl)
+                            .build();
+
+                    itens.add(item);
+                }
+
+                orcamento.setValorTotal(total);
+                orcamento.setItens(itens);
+
+                Orcamento salvo = orcamentoRepository.save(orcamento);
+
+                if (salvo.getCodigo() == null) {
+                    String codigo = gerarCodigoOrcamento(salvo.getId());
+                    salvo.setCodigo(codigo);
+                    salvo = orcamentoRepository.save(salvo);
+                }
+
+                criarEntradaHistorico(salvo, StatusOrcamento.ORCAMENTO_SOLICITADO, emailFuncionario);
+
+                return toDetalhe(salvo);
+        }
+
+        private void enviarEmailBoasVindas(String email, String nome, String senhaTemporaria) {
+                JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
+                if (mailSender == null) {
+                System.err.println("Aviso: MailSender não configurado. Email não enviado.");
+                return;
+                }
+
+                SimpleMailMessage message = new SimpleMailMessage();
+                if (mailFrom != null && !mailFrom.isBlank()) {
+                message.setFrom(mailFrom);
+                }
+                
+                message.setTo(email);
+                message.setSubject("Bem-vindo(a) à Bahia Brindes! Sua conta foi criada.");
+                message.setText("Olá " + nome + ",\n\n" +
+                        "Um orçamento foi registrado para você em nossa loja e criamos uma conta " +
+                        "para que você possa acompanhar o andamento do seu pedido e aprovar artes!\n\n" +
+                        "Sua senha temporária de acesso é: " + senhaTemporaria + "\n\n" +
+                        "Recomendamos que acesse o nosso sistema e altere sua senha em 'Esqueceu sua senha?' " +
+                        "na aba de Login.\n\n" +
+                        "Atenciosamente,\nEquipe Bahia Brindes");
+
+                try {
+                mailSender.send(message);
+                System.out.println("E-mail de boas vindas enviado para: " + email);
+                } catch (Exception ex) {
+                System.err.println("Erro ao enviar email de boas-vindas: " + ex.getMessage());
+                }
+        }
 
     // ─────────────────────────── Atualizar status ────────────────────────────
 

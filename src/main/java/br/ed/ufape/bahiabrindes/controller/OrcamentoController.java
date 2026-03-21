@@ -3,6 +3,7 @@ package br.ed.ufape.bahiabrindes.controller;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AdminOrcamentoListItemDTO;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AtualizarPagamentoRequest;
+import br.ed.ufape.bahiabrindes.dto.orcamento.CriarOrcamentoAdminRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.CriarOrcamentoRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.MeusOrcamentosItemResponseDTO;
 import br.ed.ufape.bahiabrindes.dto.orcamento.OrcamentoDetalheResponseDTO;
@@ -60,6 +61,20 @@ public class OrcamentoController {
     }
 
     // ── Endpoints administrativos ─────────────────────────────────────────────
+
+    @PostMapping("/admin")
+        public ResponseEntity<OrcamentoDetalheResponseDTO> criarAdmin(
+                org.springframework.security.core.Authentication authentication, // 1. Recebe o crachá de quem está logado
+                @Valid @RequestBody CriarOrcamentoAdminRequest request
+        ) {
+            // 2. Extrai o e-mail do funcionário
+            String emailFuncionario = (authentication != null && authentication.getName() != null) 
+                                    ? authentication.getName() 
+                                    : "Sistema";
+
+            // 3. Envia OS DOIS parâmetros para o Serviço (o request e o e-mail)
+            return ResponseEntity.ok(orcamentoService.criarOrcamentoAdmin(request, emailFuncionario));
+        }
 
     /**
      * Lista todos os orçamentos (acesso restrito a FUNCIONARIO/ADMIN).

@@ -66,4 +66,7 @@ public class Orcamento {
     @OrderBy("enviadoEm ASC")
     @Builder.Default
     private List<ArteOrcamento> artes = new ArrayList<>();
+
+    @Column(columnDefinition = "TEXT")
+    private String observacoes;
 }
