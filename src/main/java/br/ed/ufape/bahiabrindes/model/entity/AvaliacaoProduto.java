@@ -7,32 +7,34 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "comentarios_orcamento")
+@Table(name = "avaliacoes_produto")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ComentarioOrcamento {
+public class AvaliacaoProduto {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "produto_id", nullable = false)
+    private Produto produto;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "orcamento_id", nullable = false)
     private Orcamento orcamento;
 
-    /** Nome de quem enviou o comentário (cliente ou funcionário) */
-    @Column(name = "autor", nullable = false)
-    private String autor;
+    @Column(name = "nome_cliente", nullable = false, length = 200)
+    private String nomeCliente;
 
-    /** Produto ao qual este comentário se refere (null = comentário geral do pedido) */
-    @Column(name = "produto_nome")
-    private String produtoNome;
+    @Column(name = "nota", nullable = false)
+    private Integer nota;
 
-    @Column(name = "mensagem", nullable = false, columnDefinition = "TEXT")
-    private String mensagem;
+    @Column(name = "comentario", columnDefinition = "TEXT")
+    private String comentario;
 
     @CreationTimestamp
     @Column(name = "criado_em", nullable = false, updatable = false)

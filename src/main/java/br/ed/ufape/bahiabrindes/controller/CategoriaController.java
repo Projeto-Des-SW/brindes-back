@@ -44,5 +44,10 @@ public class CategoriaController {
         categoriaService.remover(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<CategoriaResponse> toggleStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(categoriaService.toggleStatus(id));
+    }
 }
 

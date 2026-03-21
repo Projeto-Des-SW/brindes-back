@@ -30,6 +30,9 @@ public class ProdutoResponseDTO {
     private String prazoProducao;
     private String observacoes;
 
+    private Double mediaAvaliacao;
+    private Long totalAvaliacoes;
+
     @Builder.Default
     private List<ItemFichaTecnicaResponseDTO> itensFichaTecnica = new ArrayList<>();
 

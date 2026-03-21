@@ -2,6 +2,7 @@ package br.ed.ufape.bahiabrindes.controller;
 
 import br.ed.ufape.bahiabrindes.dto.funcionarios.FuncionarioRequest;
 import br.ed.ufape.bahiabrindes.dto.funcionarios.FuncionarioResponse;
+import br.ed.ufape.bahiabrindes.dto.funcionarios.FuncionarioUpdateRequest;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.service.FuncionarioService;
 import jakarta.validation.Valid;
@@ -24,12 +25,13 @@ public class FuncionarioController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponse<FuncionarioResponse>> listar(
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        return ResponseEntity.ok(funcionarioService.listar(page, pageSize));
+        return ResponseEntity.ok(funcionarioService.listar(search, page, pageSize));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<FuncionarioResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(funcionarioService.buscarPorId(id));
@@ -42,7 +44,13 @@ public class FuncionarioController {
         return ResponseEntity.ok(funcionarioService.criar(request));
     }
 
-    @DeleteMapping("/{id}")
+    @PutMapping("/{id:[0-9]+}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<FuncionarioResponse> atualizar(@PathVariable Long id, @Valid @RequestBody FuncionarioUpdateRequest request) {
+        return ResponseEntity.ok(funcionarioService.atualizar(id, request));
+    }
+
+    @DeleteMapping("/{id:[0-9]+}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> remover(@PathVariable Long id) {
         funcionarioService.remover(id);

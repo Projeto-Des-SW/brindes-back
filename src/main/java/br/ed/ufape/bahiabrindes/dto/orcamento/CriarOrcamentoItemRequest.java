@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,5 +24,11 @@ public class CriarOrcamentoItemRequest {
 
     private String cor;
     private String impressao;
+
+    /** Preço unitário customizado (se null, usa o preço de venda do produto) */
+    private BigDecimal precoUnitario;
+
+    /** Desconto em R$ aplicado ao subtotal do item (quantidade × precoUnitario - desconto) */
+    private BigDecimal desconto;
 }
 

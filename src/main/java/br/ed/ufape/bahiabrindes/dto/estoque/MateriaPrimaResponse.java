@@ -18,6 +18,10 @@ public class MateriaPrimaResponse {
     private String unidade;
     private String categoria;
     private String fornecedorPrincipal;
+    private Long fornecedorSecundarioId;
+    private String fornecedorSecundario;
+    private Long localEstoqueId;
+    private String localEstoque;
     private BigDecimal estoqueAtual;
     private BigDecimal estoqueMinimo;
 }

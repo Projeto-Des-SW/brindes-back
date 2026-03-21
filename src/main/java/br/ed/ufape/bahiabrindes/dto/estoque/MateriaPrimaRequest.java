@@ -29,6 +29,10 @@ public class MateriaPrimaRequest {
 
     private Long fornecedorPrincipalId;
 
+    private Long fornecedorSecundarioId;
+
+    private Long localEstoqueId;
+
     private BigDecimal estoqueMinimo;
 }
 

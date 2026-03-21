@@ -41,6 +41,9 @@ public class OrcamentoItem {
     @Column(name = "preco_total", precision = 19, scale = 4, nullable = false)
     private BigDecimal precoTotal;
 
+    @Column(name = "desconto", precision = 19, scale = 4)
+    private BigDecimal desconto;
+
     @Column(name = "imagem_url")
     private String imagemUrl;
 }

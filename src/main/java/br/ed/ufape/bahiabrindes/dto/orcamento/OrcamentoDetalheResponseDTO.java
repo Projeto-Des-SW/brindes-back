@@ -25,6 +25,7 @@ public class OrcamentoDetalheResponseDTO {
     private String dataPrevisaoEntrega;
 
     private BigDecimal subtotal;
+    private BigDecimal descontoTotal;
     private BigDecimal frete;
     private BigDecimal valorTotal;
 

@@ -68,6 +68,12 @@ public class CategoriaService {
         categoriaRepository.save(c);
     }
 
+    public CategoriaResponse toggleStatus(Long id) {
+        Categoria c = buscarPorId(id);
+        c.setAtiva(!(Boolean.TRUE.equals(c.getAtiva())));
+        return toResponse(categoriaRepository.save(c));
+    }
+
     public Categoria getOrCreateByNome(String nome) {
         if (nome == null || nome.trim().isEmpty()) return null;
         String normalized = nome.trim();
