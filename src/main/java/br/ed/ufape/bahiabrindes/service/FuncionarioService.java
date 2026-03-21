@@ -7,6 +7,7 @@ import br.ed.ufape.bahiabrindes.dto.funcionarios.FuncionarioUpdateRequest;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.model.entity.Funcionario;
 import br.ed.ufape.bahiabrindes.model.entity.Perfil;
+import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import br.ed.ufape.bahiabrindes.repository.PerfilRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,16 +23,28 @@ import java.util.stream.Collectors;
 public class FuncionarioService {
 
     private final FuncionarioRepository funcionarioRepository;
+    private final ClienteRepository clienteRepository;
     private final PerfilRepository perfilRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public FuncionarioService(FuncionarioRepository funcionarioRepository,
+                              ClienteRepository clienteRepository,
                               PerfilRepository perfilRepository,
                               PasswordEncoder passwordEncoder) {
         this.funcionarioRepository = funcionarioRepository;
+        this.clienteRepository = clienteRepository;
         this.perfilRepository = perfilRepository;
         this.passwordEncoder = passwordEncoder;
+    }
+
+    private void validarEmailDisponivel(String email, Long funcionarioIdAtual) {
+        if (funcionarioRepository.existsByEmailAndIdNot(email, funcionarioIdAtual != null ? funcionarioIdAtual : -1L)) {
+            throw new IllegalArgumentException("Email já cadastrado por outro funcionário");
+        }
+        if (clienteRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email já cadastrado como cliente");
+        }
     }
 
     public PageResponse<FuncionarioResponse> listar(String search, int page, int pageSize) {
@@ -53,9 +66,7 @@ public class FuncionarioService {
     }
 
     public FuncionarioResponse criar(FuncionarioRequest request) {
-        if (funcionarioRepository.existsByEmail(request.getEmail().trim())) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+        validarEmailDisponivel(request.getEmail().trim(), null);
 
         Perfil perfilPadrao = perfilRepository.findByNome("ROLE_FUNCIONARIO")
                 .orElseThrow(() -> new IllegalStateException("Perfil padrão 'ROLE_FUNCIONARIO' não encontrado no banco"));
@@ -89,9 +100,7 @@ public class FuncionarioService {
     public FuncionarioResponse atualizar(Long id, FuncionarioUpdateRequest request) {
         Funcionario f = funcionarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
-        if (funcionarioRepository.existsByEmailAndIdNot(request.getEmail().trim(), id)) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+        validarEmailDisponivel(request.getEmail().trim(), id);
 
         f.setNome(request.getNome().trim());
         f.setEmail(request.getEmail().trim());
@@ -141,9 +150,7 @@ public class FuncionarioService {
                 .getContext().getAuthentication().getName();
         Funcionario f = funcionarioRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Funcionário não encontrado"));
-        if (funcionarioRepository.existsByEmailAndIdNot(request.getEmail().trim(), f.getId())) {
-            throw new IllegalArgumentException("Email já cadastrado");
-        }
+        validarEmailDisponivel(request.getEmail().trim(), f.getId());
         f.setNome(request.getNome().trim());
         f.setEmail(request.getEmail().trim());
         if (request.getSenha() != null && !request.getSenha().isBlank()) {
