@@ -5,8 +5,10 @@ import br.ed.ufape.bahiabrindes.dto.estoque.MateriaPrimaRequest;
 import br.ed.ufape.bahiabrindes.dto.estoque.MateriaPrimaResponse;
 import br.ed.ufape.bahiabrindes.model.entity.Categoria;
 import br.ed.ufape.bahiabrindes.model.entity.Fornecedor;
+import br.ed.ufape.bahiabrindes.model.entity.LocalEstoque;
 import br.ed.ufape.bahiabrindes.model.entity.MateriaPrima;
 import br.ed.ufape.bahiabrindes.repository.FornecedorRepository;
+import br.ed.ufape.bahiabrindes.repository.LocalEstoqueRepository;
 import br.ed.ufape.bahiabrindes.repository.MateriaPrimaEstoqueRepository;
 import br.ed.ufape.bahiabrindes.repository.MateriaPrimaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,18 +28,21 @@ public class MateriaPrimaService {
     private final MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository;
     private final CategoriaService categoriaService;
     private final FornecedorRepository fornecedorRepository;
+    private final LocalEstoqueRepository localEstoqueRepository;
 
     @Autowired
     public MateriaPrimaService(
             MateriaPrimaRepository materiaPrimaRepository,
             MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository,
             CategoriaService categoriaService,
-            FornecedorRepository fornecedorRepository
+            FornecedorRepository fornecedorRepository,
+            LocalEstoqueRepository localEstoqueRepository
     ) {
         this.materiaPrimaRepository = materiaPrimaRepository;
         this.materiaPrimaEstoqueRepository = materiaPrimaEstoqueRepository;
         this.categoriaService = categoriaService;
         this.fornecedorRepository = fornecedorRepository;
+        this.localEstoqueRepository = localEstoqueRepository;
     }
 
     public PageResponse<MateriaPrimaResponse> listar(String search, String categoria, int page, int pageSize) {
@@ -59,6 +64,9 @@ public class MateriaPrimaService {
     }
 
     public MateriaPrimaResponse criar(MateriaPrimaRequest request) {
+        if (materiaPrimaRepository.existsBySku(request.getCodigo())) {
+            throw new IllegalArgumentException("Já existe uma matéria-prima com o código \"" + request.getCodigo() + "\"");
+        }
         Categoria categoria = resolveCategoria(request);
         Fornecedor fornecedorPrincipal = resolveFornecedorPrincipal(request.getFornecedorPrincipalId());
 
@@ -70,6 +78,8 @@ public class MateriaPrimaService {
                 .atualizadoEm(LocalDateTime.now())
                 .categoria(categoria)
                 .fornecedorPrincipal(fornecedorPrincipal)
+                .fornecedorSecundario(resolveFornecedor(request.getFornecedorSecundarioId()))
+                .localEstoque(resolveLocalEstoque(request.getLocalEstoqueId()))
                 .build();
 
         return toResponse(materiaPrimaRepository.save(mp));
@@ -78,6 +88,9 @@ public class MateriaPrimaService {
     public MateriaPrimaResponse atualizar(Long id, MateriaPrimaRequest request) {
         MateriaPrima mp = materiaPrimaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Matéria-prima não encontrada"));
+        if (materiaPrimaRepository.existsBySkuAndIdNot(request.getCodigo(), id)) {
+            throw new IllegalArgumentException("Já existe uma matéria-prima com o código \"" + request.getCodigo() + "\"");
+        }
 
         mp.setSku(request.getCodigo());
         mp.setNome(request.getDescricao());
@@ -86,6 +99,8 @@ public class MateriaPrimaService {
         mp.setAtualizadoEm(LocalDateTime.now());
         mp.setCategoria(resolveCategoria(request));
         mp.setFornecedorPrincipal(resolveFornecedorPrincipal(request.getFornecedorPrincipalId()));
+        mp.setFornecedorSecundario(resolveFornecedor(request.getFornecedorSecundarioId()));
+        mp.setLocalEstoque(resolveLocalEstoque(request.getLocalEstoqueId()));
 
         return toResponse(materiaPrimaRepository.save(mp));
     }
@@ -106,6 +121,17 @@ public class MateriaPrimaService {
                     : mp.getFornecedorPrincipal().getRazaoSocial();
         }
 
+        Long fornSecundarioId = mp.getFornecedorSecundario() != null ? mp.getFornecedorSecundario().getId() : null;
+        String fornSecundarioNome = "";
+        if (mp.getFornecedorSecundario() != null) {
+            fornSecundarioNome = blankToNull(mp.getFornecedorSecundario().getNomeFantasia()) != null
+                    ? mp.getFornecedorSecundario().getNomeFantasia()
+                    : mp.getFornecedorSecundario().getRazaoSocial();
+        }
+
+        Long localEstoqueId = mp.getLocalEstoque() != null ? mp.getLocalEstoque().getId() : null;
+        String localEstoqueNome = mp.getLocalEstoque() != null ? mp.getLocalEstoque().getNome() : "";
+
         return MateriaPrimaResponse.builder()
                 .id(mp.getId())
                 .codigo(mp.getSku() != null ? mp.getSku() : "")
@@ -113,6 +139,10 @@ public class MateriaPrimaService {
                 .unidade(mp.getUnidade())
                 .categoria(categoria)
                 .fornecedorPrincipal(fornecedor)
+                .fornecedorSecundarioId(fornSecundarioId)
+                .fornecedorSecundario(fornSecundarioNome)
+                .localEstoqueId(localEstoqueId)
+                .localEstoque(localEstoqueNome)
                 .estoqueAtual(estoqueAtual != null ? estoqueAtual : BigDecimal.ZERO)
                 .estoqueMinimo(mp.getEstoqueMinimo() != null ? mp.getEstoqueMinimo() : BigDecimal.ZERO)
                 .build();
@@ -129,6 +159,16 @@ public class MateriaPrimaService {
         if (fornecedorPrincipalId == null) return null;
         return fornecedorRepository.findById(fornecedorPrincipalId)
                 .orElseThrow(() -> new IllegalArgumentException("Fornecedor principal não encontrado"));
+    }
+
+    private Fornecedor resolveFornecedor(Long id) {
+        if (id == null) return null;
+        return fornecedorRepository.findById(id).orElse(null);
+    }
+
+    private LocalEstoque resolveLocalEstoque(Long id) {
+        if (id == null) return null;
+        return localEstoqueRepository.findById(id).orElse(null);
     }
 
     private static BigDecimal nvl(BigDecimal v) {

@@ -32,7 +32,7 @@ public class MateriaPrima {
     /**
      * No banco chama "sku", mas no front usamos como "codigo".
      */
-    @Column(name = "sku")
+    @Column(name = "sku", unique = true)
     private String sku;
 
     @Column(name = "unidade")
@@ -51,5 +51,13 @@ public class MateriaPrima {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "fornecedor_principal_id")
     private Fornecedor fornecedorPrincipal;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fornecedor_secundario_id")
+    private Fornecedor fornecedorSecundario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "local_estoque_id")
+    private LocalEstoque localEstoque;
 }
 

@@ -64,6 +64,10 @@ public interface MateriaPrimaRepository extends JpaRepository<MateriaPrima, Long
             Pageable pageable
     );
 
+    boolean existsBySku(String sku);
+
+    boolean existsBySkuAndIdNot(String sku, Long id);
+
     @Query("""
         SELECT mp
         FROM MateriaPrima mp
