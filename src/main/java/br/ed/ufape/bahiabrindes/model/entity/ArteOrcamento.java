@@ -28,9 +28,17 @@ public class ArteOrcamento {
     @Column(name = "produto_nome", nullable = false)
     private String produtoNome;
 
-    /** URL da imagem/arquivo da arte */
-    @Column(name = "imagem_url", nullable = false)
+    /** URL da imagem/arquivo da arte (legado — novos uploads usam conteudoArquivo) */
+    @Column(name = "imagem_url")
     private String imagemUrl;
+
+    /** Nome original do arquivo com extensão (ex: logo.png, design.jpeg) */
+    @Column(name = "nome_arquivo")
+    private String nomeArquivo;
+
+    /** Conteúdo binário do arquivo armazenado no banco */
+    @Column(name = "conteudo_arquivo", columnDefinition = "bytea")
+    private byte[] conteudoArquivo;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)

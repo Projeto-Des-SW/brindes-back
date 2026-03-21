@@ -27,6 +27,10 @@ public class ComentarioOrcamento {
     @Column(name = "autor", nullable = false)
     private String autor;
 
+    /** Produto ao qual este comentário se refere (null = comentário geral do pedido) */
+    @Column(name = "produto_nome")
+    private String produtoNome;
+
     @Column(name = "mensagem", nullable = false, columnDefinition = "TEXT")
     private String mensagem;
 

@@ -2,7 +2,9 @@ package br.ed.ufape.bahiabrindes.controller;
 
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AdminOrcamentoListItemDTO;
+import br.ed.ufape.bahiabrindes.dto.orcamento.ArteOrcamentoDTO;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AtualizarPagamentoRequest;
+import br.ed.ufape.bahiabrindes.dto.orcamento.AvaliarArteRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.CriarOrcamentoAdminRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.CriarOrcamentoRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.MeusOrcamentosItemResponseDTO;
@@ -13,9 +15,14 @@ import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.service.OrcamentoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/orcamentos")
@@ -49,6 +56,21 @@ public class OrcamentoController {
     ) {
         Long clienteId = getClienteIdFromAuth(authentication);
         return ResponseEntity.ok(orcamentoService.buscarDetalhe(clienteId, id));
+    }
+
+    /**
+     * Cliente avalia uma arte (APROVAR ou SOLICITAR_AJUSTE).
+     * Se todas aprovadas → status muda para ARTES_APROVADAS automaticamente.
+     */
+    @PostMapping("/meus/{orcamentoId}/artes/{arteId}/avaliar")
+    public ResponseEntity<OrcamentoDetalheResponseDTO> avaliarArte(
+            Authentication authentication,
+            @PathVariable Long orcamentoId,
+            @PathVariable Long arteId,
+            @RequestBody AvaliarArteRequest request
+    ) {
+        Long clienteId = getClienteIdFromAuth(authentication);
+        return ResponseEntity.ok(orcamentoService.avaliarArte(clienteId, orcamentoId, arteId, request.getAcao(), request.getComentario()));
     }
 
     @PostMapping
@@ -127,6 +149,114 @@ public class OrcamentoController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(orcamentoService.atualizarStatus(id, status, responsavel));
+    }
+
+    /**
+     * Upload de arte para um produto de um orçamento.
+     * Ex: POST /api/orcamentos/42/artes?produtoNome=Caneta
+     */
+    @PostMapping("/{id}/artes")
+    public ResponseEntity<ArteOrcamentoDTO> uploadArte(
+            @PathVariable Long id,
+            @RequestParam String produtoNome,
+            @RequestParam MultipartFile arquivo) throws IOException {
+        return ResponseEntity.ok(orcamentoService.uploadArte(id, produtoNome, arquivo));
+    }
+
+    /**
+     * Notifica o cliente sobre o status atual do pedido por e-mail.
+     * Ex: POST /api/orcamentos/42/notificar/status
+     */
+    @PostMapping("/{id}/notificar/status")
+    public ResponseEntity<Void> notificarStatus(@PathVariable Long id) {
+        orcamentoService.notificarStatus(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Notifica o cliente sobre nova arte disponível para aprovação.
+     * Ex: POST /api/orcamentos/42/notificar/arte
+     */
+    @PostMapping("/{id}/notificar/arte")
+    public ResponseEntity<Void> notificarArte(@PathVariable Long id) {
+        orcamentoService.notificarArte(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Download do arquivo original da arte.
+     * Ex: GET /api/orcamentos/artes-download/123
+     * Retorna o arquivo binário com o nome original.
+     */
+    @GetMapping("/artes-download/{arteId}")
+    public ResponseEntity<byte[]> downloadArte(@PathVariable Long arteId) {
+        byte[] conteudo = orcamentoService.obterConteudoArte(arteId);
+        String nomeArquivo = orcamentoService.obterNomeArquivoArte(arteId);
+        
+        // Detectar tipo MIME baseado na extensão
+        String mediaType = detectarMediaType(nomeArquivo);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeArquivo + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, mediaType)
+                .body(conteudo);
+    }
+
+    /**
+     * Download do arquivo original da arte.
+     * Ex: GET /api/orcamentos/artes/123/download
+     * Retorna o arquivo binário com o nome original.
+     */
+    @GetMapping("/artes/{arteId}/download")
+    public ResponseEntity<byte[]> downloadArteById(@PathVariable Long arteId) {
+        byte[] conteudo = orcamentoService.obterConteudoArte(arteId);
+        String nomeArquivo = orcamentoService.obterNomeArquivoArte(arteId);
+        
+        // Detectar tipo MIME baseado na extensão
+        String mediaType = detectarMediaType(nomeArquivo);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nomeArquivo + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, mediaType)
+                .body(conteudo);
+    }
+
+    /**
+     * Visualizar/renderizar a imagem da arte no navegador.
+     * Ex: GET /api/orcamentos/artes/123/visualizar
+     * Retorna a imagem com o tipo MIME correto para ser exibida inline.
+     */
+    @GetMapping("/artes/{arteId}/visualizar")
+    public ResponseEntity<byte[]> visualizarArte(@PathVariable Long arteId) {
+        byte[] conteudo = orcamentoService.obterConteudoArte(arteId);
+        String nomeArquivo = orcamentoService.obterNomeArquivoArte(arteId);
+        
+        // Detectar tipo MIME baseado na extensão
+        String mediaType = detectarMediaType(nomeArquivo);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, mediaType)
+                .header(HttpHeaders.CACHE_CONTROL, "max-age=86400") // Cache por 24h
+                .body(conteudo);
+    }
+
+    /**
+     * Detecta o tipo MIME baseado na extensão do arquivo
+     */
+    private String detectarMediaType(String nomeArquivo) {
+        if (nomeArquivo == null) return "application/octet-stream";
+        
+        String extensao = nomeArquivo.toLowerCase();
+        if (extensao.endsWith(".png")) return "image/png";
+        if (extensao.endsWith(".jpg") || extensao.endsWith(".jpeg")) return "image/jpeg";
+        if (extensao.endsWith(".gif")) return "image/gif";
+        if (extensao.endsWith(".webp")) return "image/webp";
+        if (extensao.endsWith(".svg")) return "image/svg+xml";
+        if (extensao.endsWith(".bmp")) return "image/bmp";
+        if (extensao.endsWith(".pdf")) return "application/pdf";
+        if (extensao.endsWith(".zip")) return "application/zip";
+        
+        return "application/octet-stream"; // fallback
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────

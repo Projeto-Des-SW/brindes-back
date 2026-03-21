@@ -53,7 +53,8 @@ public class SecurityConfig {
         ));
         configuration.setExposedHeaders(Arrays.asList(
             "Authorization",
-            "Content-Type"
+            "Content-Type",
+            "Content-Disposition"
         ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
@@ -85,6 +86,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/clientes").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/produtos", "/api/produtos/**").permitAll()
+                .requestMatchers("/uploads/**").permitAll()
 
                 // CLIENTE
                 .requestMatchers("/api/clientes/me/**").hasRole("CLIENTE")
@@ -95,6 +97,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/funcionarios").hasRole("ADMIN")
                 .requestMatchers("/api/orcamentos/admin/**").hasAnyRole("FUNCIONARIO", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/orcamentos/*/status").hasAnyRole("FUNCIONARIO", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/orcamentos/*/artes").hasAnyRole("FUNCIONARIO", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/orcamentos/*/notificar/**").hasAnyRole("FUNCIONARIO", "ADMIN")
                 .requestMatchers("/api/produtos/**").hasAnyRole("FUNCIONARIO", "ADMIN")
                 .requestMatchers("/api/estoque/**").hasAnyRole("FUNCIONARIO", "ADMIN")
 

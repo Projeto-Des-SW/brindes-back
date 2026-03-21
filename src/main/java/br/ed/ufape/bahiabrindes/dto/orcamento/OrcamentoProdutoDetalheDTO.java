@@ -21,5 +21,6 @@ public class OrcamentoProdutoDetalheDTO {
     private String impressao;
     private String imagemUrl;
     private BigDecimal precoUnitario;
+    private BigDecimal desconto;
     private BigDecimal precoTotal;
 }
