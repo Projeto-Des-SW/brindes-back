@@ -39,6 +39,9 @@ public class ProdutoRequestDTO {
     @PositiveOrZero(message = "O estoque mínimo não pode ser negativo")
     private Integer estoqueMinimo;
 
+    @PositiveOrZero(message = "A quantidade disponível não pode ser negativa")
+    private Integer estoqueAtual;
+
     private String status;
 
     private String condicoesPagamento;

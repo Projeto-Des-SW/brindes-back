@@ -26,7 +26,7 @@ public class ClienteUpdateRequest {
     @Pattern(regexp = "\\d{10,11}", message = "Telefone deve conter entre 10 e 11 dígitos numéricos (sem espaços, pontos ou hífen)")
     private String telefone;
 
-    private String endereco;
+    private EnderecoRequest endereco;
     private String segmentacao;
     private String fotoPerfil;
 }

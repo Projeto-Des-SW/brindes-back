@@ -31,8 +31,9 @@ public class Cliente {
     private String telefone;
     private String segmentacao;
 
-    @Column(columnDefinition = "TEXT")
-    private String endereco;
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "endereco_id")
+    private Endereco endereco;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

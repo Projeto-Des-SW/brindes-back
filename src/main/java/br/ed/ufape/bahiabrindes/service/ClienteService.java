@@ -3,8 +3,11 @@ package br.ed.ufape.bahiabrindes.service;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteRequest;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteResponse;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteUpdateRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.EnderecoRequest;
+import br.ed.ufape.bahiabrindes.dto.clientes.EnderecoResponse;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
 import br.ed.ufape.bahiabrindes.model.entity.Cliente;
+import br.ed.ufape.bahiabrindes.model.entity.Endereco;
 import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
 import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,7 +70,7 @@ public class ClienteService {
                 .documento(cleanedCpf)
                 .email(blankToNull(request.getEmail()))
                 .telefone(blankToNull(request.getTelefone()))
-                .endereco(blankToNull(request.getEndereco()))
+                .endereco(toEnderecoEntityOrNull(request.getEndereco()))
                 .segmentacao(blankToNull(request.getSegmentacao()))
                 .senha(passwordEncoder.encode(request.getSenha()))
                 .ativo(true)
@@ -104,7 +107,18 @@ public class ClienteService {
             cliente.setTelefone(blankToNull(request.getTelefone()));
         }
         if (request.getEndereco() != null) {
-            cliente.setEndereco(blankToNull(request.getEndereco()));
+            if (isEnderecoEmpty(request.getEndereco())) {
+                cliente.setEndereco(null);
+            } else if (cliente.getEndereco() == null) {
+                cliente.setEndereco(toEnderecoEntityOrNull(request.getEndereco()));
+            } else {
+                Endereco e = cliente.getEndereco();
+                e.setRua(blankToNull(request.getEndereco().getRua()));
+                e.setNumero(blankToNull(request.getEndereco().getNumero()));
+                e.setCep(blankToNull(request.getEndereco().getCep()));
+                e.setCidade(blankToNull(request.getEndereco().getCidade()));
+                e.setEstado(blankToNull(request.getEndereco().getEstado()));
+            }
         }
         if (request.getSegmentacao() != null) {
             cliente.setSegmentacao(blankToNull(request.getSegmentacao()));
@@ -148,7 +162,7 @@ public class ClienteService {
                 .documento(c.getDocumento())
                 .email(c.getEmail())
                 .telefone(c.getTelefone())
-                .endereco(c.getEndereco())
+                .endereco(toEnderecoResponse(c.getEndereco()))
                 .segmentacao(c.getSegmentacao())
                 .criadoEm(c.getCriadoEm())
                 .fotoPerfil(c.getFotoPerfil())
@@ -175,6 +189,38 @@ public class ClienteService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    private static boolean isEnderecoEmpty(EnderecoRequest e) {
+        if (e == null) return true;
+        return blankToNull(e.getRua()) == null
+                && blankToNull(e.getNumero()) == null
+                && blankToNull(e.getCep()) == null
+                && blankToNull(e.getCidade()) == null
+                && blankToNull(e.getEstado()) == null;
+    }
+
+    private static Endereco toEnderecoEntityOrNull(EnderecoRequest e) {
+        if (e == null || isEnderecoEmpty(e)) return null;
+        return Endereco.builder()
+                .rua(blankToNull(e.getRua()))
+                .numero(blankToNull(e.getNumero()))
+                .cep(blankToNull(e.getCep()))
+                .cidade(blankToNull(e.getCidade()))
+                .estado(blankToNull(e.getEstado()))
+                .build();
+    }
+
+    private static EnderecoResponse toEnderecoResponse(Endereco e) {
+        if (e == null) return null;
+        return EnderecoResponse.builder()
+                .id(e.getId())
+                .rua(e.getRua())
+                .numero(e.getNumero())
+                .cep(e.getCep())
+                .cidade(e.getCidade())
+                .estado(e.getEstado())
+                .build();
     }
     
     private static String cleanCpf(String cpf) {

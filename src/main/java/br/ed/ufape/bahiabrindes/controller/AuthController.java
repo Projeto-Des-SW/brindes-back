@@ -6,6 +6,7 @@ import br.ed.ufape.bahiabrindes.dto.auth.ForgotPasswordRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.RegisterRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.RegisterTokenRequest;
 import br.ed.ufape.bahiabrindes.dto.auth.ResetPasswordRequest;
+import br.ed.ufape.bahiabrindes.dto.auth.ValidateTokenRequest;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteRequest;
 import br.ed.ufape.bahiabrindes.dto.clientes.ClienteResponse;
 import br.ed.ufape.bahiabrindes.service.AuthService;
@@ -82,6 +83,20 @@ public class AuthController {
     })
     public ResponseEntity<Void> requestRegisterToken(@Valid @RequestBody RegisterTokenRequest request) {
         registrationTokenService.requestToken(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/register/validate-token")
+    @Operation(
+        summary = "Validar token de cadastro",
+        description = "Verifica se o token é válido sem consumi-lo"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Token válido"),
+        @ApiResponse(responseCode = "400", description = "Token inválido ou expirado", content = @Content)
+    })
+    public ResponseEntity<Void> validateToken(@Valid @RequestBody ValidateTokenRequest request) {
+        registrationTokenService.validate(request.getEmail(), request.getToken());
         return ResponseEntity.ok().build();
     }
 
