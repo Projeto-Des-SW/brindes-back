@@ -59,5 +59,9 @@ public class MateriaPrima {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "local_estoque_id")
     private LocalEstoque localEstoque;
+
+    @Column(name = "ativo", nullable = false)
+    @Builder.Default
+    private Boolean ativo = true;
 }
 

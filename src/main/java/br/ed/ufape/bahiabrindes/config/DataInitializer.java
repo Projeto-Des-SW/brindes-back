@@ -33,6 +33,8 @@ public class DataInitializer implements CommandLineRunner {
         atualizarConstraintStatus();
         atualizarColunasArte();
         atualizarColunasComentario();
+        criarTabelaAvaliacoes();
+        atualizarColunasMateriaPrima();
         criarPerfisPadrao();
         criarFuncionarioAdmin();
     }
@@ -87,6 +89,36 @@ public class DataInitializer implements CommandLineRunner {
             log.info("Coluna nome_arquivo garantida em artes_orcamento.");
         } catch (Exception e) {
             log.warn("Ajuste nome_arquivo: {}", e.getMessage());
+        }
+    }
+
+    private void criarTabelaAvaliacoes() {
+        try {
+            entityManager.createNativeQuery(
+                "CREATE TABLE IF NOT EXISTS avaliacoes_produto (" +
+                "  id BIGSERIAL PRIMARY KEY," +
+                "  produto_id BIGINT NOT NULL," +
+                "  orcamento_id BIGINT NOT NULL," +
+                "  nome_cliente VARCHAR(200) NOT NULL," +
+                "  nota INTEGER NOT NULL," +
+                "  comentario TEXT," +
+                "  criado_em TIMESTAMP NOT NULL DEFAULT NOW()" +
+                ")"
+            ).executeUpdate();
+            log.info("Tabela avaliacoes_produto garantida.");
+        } catch (Exception e) {
+            log.warn("Ajuste tabela avaliacoes_produto: {}", e.getMessage());
+        }
+    }
+
+    private void atualizarColunasMateriaPrima() {
+        try {
+            entityManager.createNativeQuery(
+                "ALTER TABLE materias_primas ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE"
+            ).executeUpdate();
+            log.info("Coluna ativo garantida em materias_primas.");
+        } catch (Exception e) {
+            log.warn("Ajuste ativo materias_primas: {}", e.getMessage());
         }
     }
 

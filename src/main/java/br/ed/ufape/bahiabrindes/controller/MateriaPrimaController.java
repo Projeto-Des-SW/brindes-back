@@ -53,5 +53,10 @@ public class MateriaPrimaController {
         materiaPrimaService.remover(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<MateriaPrimaResponse> toggleStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(materiaPrimaService.toggleStatus(id));
+    }
 }
 

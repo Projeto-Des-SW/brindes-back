@@ -41,8 +41,13 @@ public class OrcamentoService {
     private final HistoricoStatusOrcamentoRepository historicoRepository;
     private final ArteOrcamentoRepository arteRepository;
     private final ComentarioOrcamentoRepository comentarioRepository;
+    private final AvaliacaoProdutoRepository avaliacaoRepository;
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final PasswordEncoder passwordEncoder;
+    private final MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository;
+    private final MovimentacaoEstoqueRepository movimentacaoRepository;
+    private final FuncionarioRepository funcionarioRepository;
+    private final OrcamentoItemRepository orcamentoItemRepository;
 
     @Value("${app.mail.from:}")
     private String mailFrom;
@@ -87,8 +92,13 @@ public class OrcamentoService {
             HistoricoStatusOrcamentoRepository historicoRepository,
             ArteOrcamentoRepository arteRepository,
             ComentarioOrcamentoRepository comentarioRepository,
+            AvaliacaoProdutoRepository avaliacaoRepository,
             ObjectProvider<JavaMailSender> mailSenderProvider,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository,
+            MovimentacaoEstoqueRepository movimentacaoRepository,
+            FuncionarioRepository funcionarioRepository,
+            OrcamentoItemRepository orcamentoItemRepository
     ) {
         this.orcamentoRepository = orcamentoRepository;
         this.produtoRepository = produtoRepository;
@@ -96,9 +106,13 @@ public class OrcamentoService {
         this.historicoRepository = historicoRepository;
         this.arteRepository = arteRepository;
         this.comentarioRepository = comentarioRepository;
+        this.avaliacaoRepository = avaliacaoRepository;
         this.mailSenderProvider = mailSenderProvider;
         this.passwordEncoder = passwordEncoder;
-
+        this.materiaPrimaEstoqueRepository = materiaPrimaEstoqueRepository;
+        this.movimentacaoRepository = movimentacaoRepository;
+        this.funcionarioRepository = funcionarioRepository;
+        this.orcamentoItemRepository = orcamentoItemRepository;
     }
 
     // ─────────────────────────── Listagem (admin) ────────────────────────────
@@ -168,6 +182,28 @@ public class OrcamentoService {
         if (metodoPagamento != null) orcamento.setMetodoPagamento(metodoPagamento);
         if (valorPago != null) orcamento.setValorPago(valorPago);
         orcamentoRepository.save(orcamento);
+        return toDetalhe(orcamento);
+    }
+
+    /** Atualiza o desconto de um item de orçamento e recalcula o precoTotal do item. */
+    @Transactional
+    public OrcamentoDetalheResponseDTO atualizarDescontoItem(Long orcamentoId, Long itemId, java.math.BigDecimal desconto) {
+        Orcamento orcamento = orcamentoRepository.findById(orcamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Orçamento não encontrado"));
+        OrcamentoItem item = orcamentoItemRepository.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("Item não encontrado"));
+        if (!item.getOrcamento().getId().equals(orcamentoId)) {
+            throw new IllegalArgumentException("Item não pertence ao orçamento informado");
+        }
+        java.math.BigDecimal novoDesconto = desconto != null && desconto.compareTo(java.math.BigDecimal.ZERO) >= 0
+                ? desconto : java.math.BigDecimal.ZERO;
+        item.setDesconto(novoDesconto);
+        java.math.BigDecimal qty = java.math.BigDecimal.valueOf(item.getQuantidade() != null ? item.getQuantidade() : 1);
+        java.math.BigDecimal pu = item.getPrecoUnitario() != null ? item.getPrecoUnitario() : java.math.BigDecimal.ZERO;
+        java.math.BigDecimal novoTotal = qty.multiply(pu).subtract(novoDesconto);
+        if (novoTotal.compareTo(java.math.BigDecimal.ZERO) < 0) novoTotal = java.math.BigDecimal.ZERO;
+        item.setPrecoTotal(novoTotal);
+        orcamentoItemRepository.save(item);
         return toDetalhe(orcamento);
     }
 
@@ -390,6 +426,9 @@ public class OrcamentoService {
                 .orElseThrow(() -> new IllegalArgumentException("Orçamento não encontrado"));
 
         orcamento.setStatus(novoStatus);
+        if (novoStatus == StatusOrcamento.PAGAMENTO_APROVADO) {
+            registrarSaidaEstoqueOrcamento(orcamento, responsavel);
+        }
         orcamentoRepository.save(orcamento);
 
         criarEntradaHistorico(orcamento, novoStatus, responsavel != null ? responsavel : "Sistema");
@@ -398,6 +437,48 @@ public class OrcamentoService {
     }
 
     // ─────────────────────────── Helpers privados ────────────────────────────
+
+    private void registrarSaidaEstoqueOrcamento(Orcamento orcamento, String responsavelNome) {
+        if (orcamento.getItens() == null) return;
+        Funcionario funcionario = (responsavelNome != null && !responsavelNome.isBlank())
+                ? funcionarioRepository.findByNome(responsavelNome).orElse(null)
+                : null;
+        for (OrcamentoItem item : orcamento.getItens()) {
+            Produto produto = item.getProduto();
+            if (produto == null || produto.getItensFichaTecnica() == null) continue;
+            int qtdPedido = item.getQuantidade() != null ? item.getQuantidade() : 1;
+            for (MateriaPrimaProduto mp : produto.getItensFichaTecnica()) {
+                java.math.BigDecimal qtdNecessaria = mp.getQuantidadeNecessaria()
+                        .multiply(java.math.BigDecimal.valueOf(qtdPedido));
+                MovimentacaoEstoque mov = MovimentacaoEstoque.builder()
+                        .tipo("Saída")
+                        .tipoItem("MATERIA_PRIMA")
+                        .itemId(mp.getMateriaPrima().getId())
+                        .materiaPrima(mp.getMateriaPrima())
+                        .quantidade(qtdNecessaria)
+                        .motivo("Baixa automática - Pagamento aprovado do orçamento #" + orcamento.getCodigo())
+                        .dataMovimentacao(java.time.LocalDateTime.now())
+                        .usuario(funcionario)
+                        .build();
+                movimentacaoRepository.save(mov);
+                debitarEstoqueMateriaPrima(mp.getMateriaPrima().getId(), qtdNecessaria);
+            }
+        }
+    }
+
+    private void debitarEstoqueMateriaPrima(Long materiaPrimaId, java.math.BigDecimal quantidade) {
+        List<MateriaPrimaEstoque> estoques = materiaPrimaEstoqueRepository
+                .findByMateriaPrimaIdOrderByEstoqueAtualDesc(materiaPrimaId);
+        java.math.BigDecimal restante = quantidade;
+        for (MateriaPrimaEstoque estoque : estoques) {
+            if (restante.compareTo(java.math.BigDecimal.ZERO) <= 0) break;
+            java.math.BigDecimal atual = estoque.getEstoqueAtual() != null ? estoque.getEstoqueAtual() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal deducao = restante.min(atual);
+            estoque.setEstoqueAtual(atual.subtract(deducao));
+            materiaPrimaEstoqueRepository.save(estoque);
+            restante = restante.subtract(deducao);
+        }
+    }
 
     private void criarEntradaHistorico(Orcamento orcamento, StatusOrcamento status, String responsavel) {
         String statusStr = status.name();
@@ -499,18 +580,27 @@ public class OrcamentoService {
         // Produtos
         List<OrcamentoProdutoDetalheDTO> produtosDTOs = orcamento.getItens() == null ? List.of() :
                 orcamento.getItens().stream()
-                        .map(item -> OrcamentoProdutoDetalheDTO.builder()
-                                .id(item.getId())
-                                .nome(item.getProduto().getNome())
-                                .quantidade(item.getQuantidade())
-                                .cor(item.getCor())
-                                .tamanho(null)
-                                .impressao(item.getVariacao())
-                                .imagemUrl(item.getImagemUrl())
-                                .precoUnitario(item.getPrecoUnitario())
-                                .desconto(item.getDesconto() != null ? item.getDesconto() : BigDecimal.ZERO)
-                                .precoTotal(item.getPrecoTotal())
-                                .build())
+                        .map(item -> {
+                            var avaliacao = avaliacaoRepository
+                                    .findByOrcamentoIdAndProdutoId(orcamento.getId(), item.getProduto().getId())
+                                    .orElse(null);
+                            return OrcamentoProdutoDetalheDTO.builder()
+                                    .id(item.getId())
+                                    .produtoId(item.getProduto().getId())
+                                    .nome(item.getProduto().getNome())
+                                    .quantidade(item.getQuantidade())
+                                    .cor(item.getCor())
+                                    .tamanho(null)
+                                    .impressao(item.getVariacao())
+                                    .imagemUrl(item.getImagemUrl())
+                                    .precoUnitario(item.getPrecoUnitario())
+                                    .desconto(item.getDesconto() != null ? item.getDesconto() : BigDecimal.ZERO)
+                                    .precoTotal(item.getPrecoTotal())
+                                    .jaAvaliado(avaliacao != null)
+                                    .notaAvaliacao(avaliacao != null ? avaliacao.getNota() : null)
+                                    .comentarioAvaliacao(avaliacao != null ? avaliacao.getComentario() : null)
+                                    .build();
+                        })
                         .toList();
 
         // Desconto total = soma dos descontos por item
@@ -717,6 +807,59 @@ public class OrcamentoService {
             orcamentoRepository.save(orcamento);
             criarEntradaHistorico(orcamento, StatusOrcamento.ARTES_APROVADAS, orcamento.getCliente().getNome());
         }
+
+        return toDetalhe(orcamento);
+    }
+
+    // ─────────────────────────── Admin — Arte / Comentário ──────────────────
+
+    @Transactional
+    public OrcamentoDetalheResponseDTO avaliarArteAdmin(Long orcamentoId, Long arteId, String novoStatusStr, String comentario, String responsavel) {
+        Orcamento orcamento = orcamentoRepository.findById(orcamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Orçamento não encontrado"));
+
+        ArteOrcamento arte = arteRepository.findById(arteId)
+                .orElseThrow(() -> new IllegalArgumentException("Arte não encontrada"));
+
+        StatusArte novoStatus;
+        try {
+            novoStatus = StatusArte.valueOf(novoStatusStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Status inválido: " + novoStatusStr);
+        }
+
+        arte.setStatus(novoStatus);
+        arteRepository.save(arte);
+
+        if (comentario != null && !comentario.isBlank()) {
+            ComentarioOrcamento cm = ComentarioOrcamento.builder()
+                    .orcamento(orcamento)
+                    .autor(responsavel != null ? responsavel : "Sistema")
+                    .produtoNome(arte.getProdutoNome())
+                    .mensagem(comentario)
+                    .build();
+            comentarioRepository.save(cm);
+        }
+
+        return toDetalhe(orcamento);
+    }
+
+    @Transactional
+    public OrcamentoDetalheResponseDTO adicionarComentario(Long orcamentoId, String mensagem, String produtoNome, String autor) {
+        Orcamento orcamento = orcamentoRepository.findById(orcamentoId)
+                .orElseThrow(() -> new IllegalArgumentException("Orçamento não encontrado"));
+
+        if (mensagem == null || mensagem.isBlank()) {
+            throw new IllegalArgumentException("Mensagem não pode ser vazia");
+        }
+
+        ComentarioOrcamento cm = ComentarioOrcamento.builder()
+                .orcamento(orcamento)
+                .autor(autor != null ? autor : "Sistema")
+                .produtoNome(produtoNome != null && !produtoNome.isBlank() ? produtoNome : null)
+                .mensagem(mensagem)
+                .build();
+        comentarioRepository.save(cm);
 
         return toDetalhe(orcamento);
     }

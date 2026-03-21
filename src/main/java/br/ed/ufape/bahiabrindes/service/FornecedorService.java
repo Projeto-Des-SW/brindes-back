@@ -98,6 +98,13 @@ public class FornecedorService {
         fornecedorRepository.save(fornecedor);
     }
 
+    public FornecedorResponse toggleStatus(Long id) {
+        Fornecedor fornecedor = fornecedorRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Fornecedor não encontrado"));
+        fornecedor.setStatus("ATIVO".equals(fornecedor.getStatus()) ? "INATIVO" : "ATIVO");
+        return toResponse(fornecedorRepository.save(fornecedor));
+    }
+
     private FornecedorResponse toResponse(Fornecedor f) {
         String nome = blankToNull(f.getNomeFantasia()) != null ? f.getNomeFantasia() : f.getRazaoSocial();
         String prazo = f.getPrazoEntregaDias() != null ? (f.getPrazoEntregaDias() + " dias") : "";

@@ -12,6 +12,8 @@ import br.ed.ufape.bahiabrindes.model.entity.MateriaPrima;
 import br.ed.ufape.bahiabrindes.model.entity.MateriaPrimaProduto;
 import br.ed.ufape.bahiabrindes.model.entity.Produto;
 import br.ed.ufape.bahiabrindes.model.entity.ProdutoImagem;
+import br.ed.ufape.bahiabrindes.repository.AvaliacaoProdutoRepository;
+import br.ed.ufape.bahiabrindes.repository.MateriaPrimaEstoqueRepository;
 import br.ed.ufape.bahiabrindes.repository.MateriaPrimaRepository;
 import br.ed.ufape.bahiabrindes.repository.ProdutoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,20 +33,28 @@ public class ProdutoService {
     private final ProdutoRepository produtoRepository;
     private final MateriaPrimaRepository materiaPrimaRepository;
     private final CategoriaService categoriaService;
+    private final AvaliacaoProdutoRepository avaliacaoRepository;
+    private final MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository;
 
     @Autowired
     public ProdutoService(
             ProdutoRepository produtoRepository,
             MateriaPrimaRepository materiaPrimaRepository,
-            CategoriaService categoriaService) {
+            CategoriaService categoriaService,
+            AvaliacaoProdutoRepository avaliacaoRepository,
+            MateriaPrimaEstoqueRepository materiaPrimaEstoqueRepository) {
         this.produtoRepository = produtoRepository;
         this.materiaPrimaRepository = materiaPrimaRepository;
         this.categoriaService = categoriaService;
+        this.avaliacaoRepository = avaliacaoRepository;
+        this.materiaPrimaEstoqueRepository = materiaPrimaEstoqueRepository;
     }
 
-    public PageResponse<ProdutoResponseDTO> listar(int page, int pageSize) {
+    public PageResponse<ProdutoResponseDTO> listar(int page, int pageSize, String status) {
         Pageable pageable = PageRequest.of(Math.max(page - 1, 0), pageSize, Sort.by("id").descending());
-        Page<Produto> result = produtoRepository.findAll(pageable);
+        Page<Produto> result = (status != null && !status.isBlank())
+                ? produtoRepository.findByStatus(status.toUpperCase(), pageable)
+                : produtoRepository.findAll(pageable);
 
         return PageResponse.<ProdutoResponseDTO>builder()
                 .items(result.getContent().stream().map(this::toResponse).toList())
@@ -69,7 +79,7 @@ public class ProdutoService {
                 .precoVenda(request.getPrecoVenda())
                 .custoProducao(request.getCustoProducao())
                 .categoria(resolveCategoria(request.getCategoriaId()))
-                .estoqueAtual(request.getEstoqueAtual() != null ? request.getEstoqueAtual() : 0)
+                .estoqueAtual(0)
                 .estoqueMinimo(request.getEstoqueMinimo() != null ? request.getEstoqueMinimo() : 0)
                 .status(request.getStatus() != null ? request.getStatus() : "ATIVO")
                 .condicoesPagamento(request.getCondicoesPagamento())
@@ -96,7 +106,6 @@ public class ProdutoService {
         produto.setCustoProducao(request.getCustoProducao());
         produto.setCategoria(resolveCategoria(request.getCategoriaId()));
         produto.setEstoqueMinimo(request.getEstoqueMinimo() != null ? request.getEstoqueMinimo() : 0);
-        if (request.getEstoqueAtual() != null) produto.setEstoqueAtual(request.getEstoqueAtual());
         produto.setStatus(request.getStatus() != null ? request.getStatus() : produto.getStatus());
         produto.setCondicoesPagamento(request.getCondicoesPagamento());
         produto.setPrazoProducao(request.getPrazoProducao());
@@ -112,7 +121,17 @@ public class ProdutoService {
     public void remover(Long id) {
         Produto produto = produtoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
-        produtoRepository.delete(produto);
+        String novoStatus = "ATIVO".equals(produto.getStatus()) ? "INATIVO" : "ATIVO";
+        produto.setStatus(novoStatus);
+        produtoRepository.save(produto);
+    }
+
+    @Transactional
+    public ProdutoResponseDTO toggleStatus(Long id) {
+        Produto produto = produtoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Produto não encontrado"));
+        produto.setStatus("ATIVO".equals(produto.getStatus()) ? "INATIVO" : "ATIVO");
+        return toResponse(produtoRepository.save(produto));
     }
 
     // ── Helpers ──────────────────────────────────────────────
@@ -177,6 +196,9 @@ public class ProdutoService {
                         .toList()
                 : List.of();
 
+        Double media = avaliacaoRepository.calcularMediaPorProduto(produto.getId());
+        long total = avaliacaoRepository.countByProdutoId(produto.getId());
+
         return ProdutoResponseDTO.builder()
                 .id(produto.getId())
                 .nome(produto.getNome())
@@ -186,15 +208,32 @@ public class ProdutoService {
                 .custoProducao(produto.getCustoProducao())
                 .categoriaId(produto.getCategoria() != null ? produto.getCategoria().getId() : null)
                 .categoriaNome(produto.getCategoria() != null ? produto.getCategoria().getNome() : null)
-                .estoqueAtual(produto.getEstoqueAtual())
+                .estoqueAtual(calcularEstoqueDisponivel(produto))
                 .estoqueMinimo(produto.getEstoqueMinimo())
                 .status(produto.getStatus())
                 .condicoesPagamento(produto.getCondicoesPagamento())
                 .prazoProducao(produto.getPrazoProducao())
                 .observacoes(produto.getObservacoes())
+                .mediaAvaliacao(media != null ? media : 0.0)
+                .totalAvaliacoes(total)
                 .itensFichaTecnica(itens)
                 .imagens(imagens)
                 .build();
+    }
+
+    private int calcularEstoqueDisponivel(Produto produto) {
+        List<MateriaPrimaProduto> itens = produto.getItensFichaTecnica();
+        if (itens == null || itens.isEmpty()) return 0;
+        int min = Integer.MAX_VALUE;
+        for (MateriaPrimaProduto item : itens) {
+            java.math.BigDecimal estoque = materiaPrimaEstoqueRepository.sumEstoqueAtual(item.getMateriaPrima().getId());
+            if (estoque == null) estoque = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal qtd = item.getQuantidadeNecessaria();
+            if (qtd == null || qtd.compareTo(java.math.BigDecimal.ZERO) <= 0) continue;
+            int disponivel = estoque.divide(qtd, 0, java.math.RoundingMode.FLOOR).intValue();
+            min = Math.min(min, disponivel);
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
     }
 
     private ItemFichaTecnicaResponseDTO toItemResponse(MateriaPrimaProduto item) {

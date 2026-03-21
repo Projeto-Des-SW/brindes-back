@@ -48,5 +48,10 @@ public class FornecedorController {
         fornecedorService.remover(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<FornecedorResponse> toggleStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(fornecedorService.toggleStatus(id));
+    }
 }
 

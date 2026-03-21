@@ -111,6 +111,13 @@ public class MateriaPrimaService {
         materiaPrimaRepository.delete(mp);
     }
 
+    public MateriaPrimaResponse toggleStatus(Long id) {
+        MateriaPrima mp = materiaPrimaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Matéria-prima não encontrada"));
+        mp.setAtivo(!(Boolean.TRUE.equals(mp.getAtivo())));
+        return toResponse(materiaPrimaRepository.save(mp));
+    }
+
     private MateriaPrimaResponse toResponse(MateriaPrima mp) {
         BigDecimal estoqueAtual = materiaPrimaEstoqueRepository.sumEstoqueAtual(mp.getId());
         String categoria = mp.getCategoria() != null ? mp.getCategoria().getNome() : "";
