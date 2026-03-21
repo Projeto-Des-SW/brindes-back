@@ -1,8 +1,13 @@
 package br.ed.ufape.bahiabrindes.controller;
 
+import br.ed.ufape.bahiabrindes.dto.avaliacao.AvaliacaoProdutoDTO;
+import br.ed.ufape.bahiabrindes.dto.avaliacao.CriarAvaliacaoRequest;
 import br.ed.ufape.bahiabrindes.dto.common.PageResponse;
+import br.ed.ufape.bahiabrindes.dto.orcamento.AdicionarComentarioRequest;
+import br.ed.ufape.bahiabrindes.dto.orcamento.AdminAvaliarArteRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AdminOrcamentoListItemDTO;
 import br.ed.ufape.bahiabrindes.dto.orcamento.ArteOrcamentoDTO;
+import br.ed.ufape.bahiabrindes.dto.orcamento.AtualizarItemDescontoRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AtualizarPagamentoRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.AvaliarArteRequest;
 import br.ed.ufape.bahiabrindes.dto.orcamento.CriarOrcamentoAdminRequest;
@@ -12,11 +17,12 @@ import br.ed.ufape.bahiabrindes.dto.orcamento.OrcamentoDetalheResponseDTO;
 import br.ed.ufape.bahiabrindes.model.entity.Cliente;
 import br.ed.ufape.bahiabrindes.model.enums.StatusOrcamento;
 import br.ed.ufape.bahiabrindes.repository.ClienteRepository;
+import br.ed.ufape.bahiabrindes.repository.FuncionarioRepository;
+import br.ed.ufape.bahiabrindes.service.AvaliacaoService;
 import br.ed.ufape.bahiabrindes.service.OrcamentoService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -30,11 +36,15 @@ public class OrcamentoController {
 
     private final OrcamentoService orcamentoService;
     private final ClienteRepository clienteRepository;
+    private final FuncionarioRepository funcionarioRepository;
+    private final AvaliacaoService avaliacaoService;
 
     @Autowired
-    public OrcamentoController(OrcamentoService orcamentoService, ClienteRepository clienteRepository) {
+    public OrcamentoController(OrcamentoService orcamentoService, ClienteRepository clienteRepository, FuncionarioRepository funcionarioRepository, AvaliacaoService avaliacaoService) {
         this.orcamentoService = orcamentoService;
         this.clienteRepository = clienteRepository;
+        this.funcionarioRepository = funcionarioRepository;
+        this.avaliacaoService = avaliacaoService;
     }
 
     // ── Endpoints do cliente ──────────────────────────────────────────────────
@@ -89,13 +99,7 @@ public class OrcamentoController {
                 org.springframework.security.core.Authentication authentication, // 1. Recebe o crachá de quem está logado
                 @Valid @RequestBody CriarOrcamentoAdminRequest request
         ) {
-            // 2. Extrai o e-mail do funcionário
-            String emailFuncionario = (authentication != null && authentication.getName() != null) 
-                                    ? authentication.getName() 
-                                    : "Sistema";
-
-            // 3. Envia OS DOIS parâmetros para o Serviço (o request e o e-mail)
-            return ResponseEntity.ok(orcamentoService.criarOrcamentoAdmin(request, emailFuncionario));
+            return ResponseEntity.ok(orcamentoService.criarOrcamentoAdmin(request, getNomeFuncionario(authentication)));
         }
 
     /**
@@ -130,6 +134,19 @@ public class OrcamentoController {
             @RequestBody AtualizarPagamentoRequest request
     ) {
         return ResponseEntity.ok(orcamentoService.atualizarPagamento(id, request.getMetodoPagamento(), request.getValorPago()));
+    }
+
+    /**
+     * Atualiza o desconto de um item de orçamento.
+     * Ex: PATCH /api/orcamentos/admin/{orcamentoId}/itens/{itemId}
+     */
+    @PatchMapping("/admin/{orcamentoId}/itens/{itemId}")
+    public ResponseEntity<OrcamentoDetalheResponseDTO> atualizarDescontoItem(
+            @PathVariable Long orcamentoId,
+            @PathVariable Long itemId,
+            @RequestBody AtualizarItemDescontoRequest request
+    ) {
+        return ResponseEntity.ok(orcamentoService.atualizarDescontoItem(orcamentoId, itemId, request.getDesconto()));
     }
 
     /**
@@ -259,7 +276,52 @@ public class OrcamentoController {
         return "application/octet-stream"; // fallback
     }
 
-    // ── Helper ───────────────────────────────────────────────────────────────
+    /**
+     * Admin altera o status de uma arte específica.
+     * Ex: PATCH /api/orcamentos/admin/{orcamentoId}/artes/{arteId}/status
+     */
+    @PatchMapping("/admin/{orcamentoId}/artes/{arteId}/status")
+    public ResponseEntity<OrcamentoDetalheResponseDTO> avaliarArteAdmin(
+            Authentication authentication,
+            @PathVariable Long orcamentoId,
+            @PathVariable Long arteId,
+            @RequestBody AdminAvaliarArteRequest request
+    ) {
+        return ResponseEntity.ok(orcamentoService.avaliarArteAdmin(orcamentoId, arteId, request.getNovoStatus(), request.getComentario(), getNomeFuncionario(authentication)));
+    }
+
+    /**
+     * Admin adiciona um comentário a um orçamento (geral ou por produto).
+     * Ex: POST /api/orcamentos/admin/{orcamentoId}/comentario
+     */
+    @PostMapping("/admin/{orcamentoId}/comentario")
+    public ResponseEntity<OrcamentoDetalheResponseDTO> adicionarComentario(
+            Authentication authentication,
+            @PathVariable Long orcamentoId,
+            @RequestBody AdicionarComentarioRequest request
+    ) {
+        return ResponseEntity.ok(orcamentoService.adicionarComentario(orcamentoId, request.getMensagem(), request.getProdutoNome(), getNomeFuncionario(authentication)));
+    }
+
+    @PostMapping("/meus/{orcamentoId}/avaliar")
+    public ResponseEntity<AvaliacaoProdutoDTO> avaliarProduto(
+            Authentication authentication,
+            @PathVariable Long orcamentoId,
+            @RequestBody CriarAvaliacaoRequest request
+    ) {
+        Long clienteId = getClienteIdFromAuth(authentication);
+        return ResponseEntity.ok(avaliacaoService.criar(clienteId, orcamentoId, request));
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private String getNomeFuncionario(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) return "Sistema";
+        String email = authentication.getName();
+        return funcionarioRepository.findByEmail(email)
+                .map(f -> f.getNome())
+                .orElse(email);
+    }
 
     private Long getClienteIdFromAuth(Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
