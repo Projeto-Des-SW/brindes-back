@@ -296,6 +296,10 @@ public class OrcamentoService {
                     throw new IllegalArgumentException("O e-mail do cliente é obrigatório para registar a venda.");
                 }
 
+                if (funcionarioRepository.findByEmail(request.getEmailCliente()).isPresent()) {
+                    throw new IllegalArgumentException("Email já cadastrado como funcionário");
+                }
+
                 // Procura o cliente pelo e-mail. Se não existir, cria na hora
                 Cliente cliente = clienteRepository.findByEmailAndAtivoTrue(request.getEmailCliente())
                         .orElseGet(() -> {
