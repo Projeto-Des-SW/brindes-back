@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 public interface MateriaPrimaEstoqueRepository extends JpaRepository<MateriaPrimaEstoque, Long> {
@@ -16,5 +17,8 @@ public interface MateriaPrimaEstoqueRepository extends JpaRepository<MateriaPrim
 
     @Query("SELECT SUM(e.estoqueAtual) FROM MateriaPrimaEstoque e WHERE e.materiaPrima.id = :materiaPrimaId")
     BigDecimal sumEstoqueAtual(@Param("materiaPrimaId") Long materiaPrimaId);
+
+    @Query("SELECT e FROM MateriaPrimaEstoque e WHERE e.materiaPrima.id = :materiaPrimaId ORDER BY e.estoqueAtual DESC")
+    List<MateriaPrimaEstoque> findByMateriaPrimaIdOrderByEstoqueAtualDesc(@Param("materiaPrimaId") Long materiaPrimaId);
 }
 

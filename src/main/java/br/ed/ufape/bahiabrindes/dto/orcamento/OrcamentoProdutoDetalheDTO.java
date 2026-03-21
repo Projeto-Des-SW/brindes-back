@@ -14,7 +14,11 @@ import java.math.BigDecimal;
 public class OrcamentoProdutoDetalheDTO {
 
     private Long id;
+    private Long produtoId;
     private String nome;
+    private boolean jaAvaliado;
+    private Integer notaAvaliacao;
+    private String comentarioAvaliacao;
     private Integer quantidade;
     private String cor;
     private String tamanho;

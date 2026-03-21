@@ -58,6 +58,13 @@ public class LocalEstoqueService {
         localEstoqueRepository.save(local);
     }
 
+    public LocalEstoqueResponse toggleStatus(Long id) {
+        LocalEstoque local = localEstoqueRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Local de estoque não encontrado"));
+        local.setAtivo(!(Boolean.TRUE.equals(local.getAtivo())));
+        return toResponse(localEstoqueRepository.save(local));
+    }
+
     private LocalEstoqueResponse toResponse(LocalEstoque l) {
         return LocalEstoqueResponse.builder()
                 .id(l.getId())

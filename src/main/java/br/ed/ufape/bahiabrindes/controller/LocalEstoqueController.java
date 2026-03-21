@@ -47,5 +47,10 @@ public class LocalEstoqueController {
         localEstoqueService.remover(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PatchMapping("/{id}/toggle")
+    public ResponseEntity<LocalEstoqueResponse> toggleStatus(@PathVariable Long id) {
+        return ResponseEntity.ok(localEstoqueService.toggleStatus(id));
+    }
 }
 
